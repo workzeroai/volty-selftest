@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<title>회전 화살표와 사인파 셀프 테스트</title>
+<!--
+  Volty H09 셀프 테스트 2: 회전 화살표 → 사인파 (비공개 · 로컬 전용 · 초안). 가설: 조작형 그림(V)이 글+정지 그림(T)보다 이해를 더 만든다.
+  외부 라이브러리·글꼴·네트워크 없음(CSP connect-src 'none'). 개인정보(이름·연락처·이메일)를 묻지 않는다.
+  내용 원천: content/volty-content.v1.json CAND-1101(정현파와 순시값), CAND-1107(페이저) easy·visual (draft · pending_sme_review · pending_rights_check).
+  쿼리: ?admin=1(로컬 집계, 테스트용) · ?arm=V|T(배정 강제, 테스트용) · ?theme=light|dark · ?rm=1(모션 줄이기) · ?store=stub(백엔드 자리표시 → 로컬로 대체)
+-->
+<style>
+:root {
+  --bg:#F2F4F6; --surface:#FFFFFF; --sunken:#F9FAFB; --ink:#191F28; --text2:#4E5968; --text3:#636E7B;
+  --brand:#FFD43B; --brandPressed:#F2C200; --onBrand:#191F28; --brandSoft:#FFF3C4; --onBrandSoft:#191F28;
+  --border:#D1D6DB; --divider:#E5E8EB; --track:#E5E8EB; --progress:#191F28; --focus:#191F28; --sel:#191F28;
+  --danger:#C81E2D; --success:#0F7A43; --axis:#8B95A1; --ring:#B0B8C1; --cur:#1B64DA; --rms:#C2410C;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#101318; --surface:#1B1F26; --sunken:#15181E; --ink:#F2F4F6; --text2:#B0B8C1; --text3:#8B95A1;
+    --brandPressed:#E6BE2E; --brandSoft:#3A3115; --onBrandSoft:#FFE58A; --border:#3A414C; --divider:#2B313B;
+    --track:#2B313B; --progress:#FFD43B; --focus:#FFD43B; --sel:#FFD43B; --danger:#FF6B6B; --success:#4CC38A;
+    --axis:#636E7B; --ring:#4E5968; --cur:#7DB3FF; --rms:#FDBA74;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#101318; --surface:#1B1F26; --sunken:#15181E; --ink:#F2F4F6; --text2:#B0B8C1; --text3:#8B95A1;
+  --brandPressed:#E6BE2E; --brandSoft:#3A3115; --onBrandSoft:#FFE58A; --border:#3A414C; --divider:#2B313B;
+  --track:#2B313B; --progress:#FFD43B; --focus:#FFD43B; --sel:#FFD43B; --danger:#FF6B6B; --success:#4CC38A;
+  --axis:#636E7B; --ring:#4E5968; --cur:#7DB3FF; --rms:#FDBA74;
+}
+* { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body {
+  margin:0; background:var(--bg); color:var(--ink);
+  font:17px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  word-break:keep-all; overflow-wrap:anywhere;
+}
+main { max-width:560px; margin:0 auto; padding:12px 20px 40px; }
+[hidden] { display:none !important; }
+.top { position:sticky; top:0; z-index:2; background:var(--bg); padding:8px 0 4px; }
+.over { font-size:14px; color:var(--text3); margin:0; }
+.prog { height:6px; background:var(--track); border-radius:3px; overflow:hidden; margin:6px 0 2px; }
+.prog > div { height:100%; width:0; background:var(--progress); transition:width .3s; }
+h1 { font-size:24px; line-height:1.4; margin:8px 0; text-wrap:balance; }
+h2 { font-size:20px; line-height:1.4; margin:0 0 8px; }
+h3 { font-size:18px; line-height:1.45; margin:12px 0 6px; }
+p { margin:0 0 12px; color:var(--text2); }
+ul, ol { margin:0 0 12px; padding-left:22px; color:var(--text2); }
+li { margin:2px 0; }
+b, strong { color:var(--ink); }
+.card { background:var(--surface); border-radius:16px; padding:16px; margin:12px 0; }
+.sunk { background:var(--sunken); border-radius:12px; padding:12px; margin:8px 0; }
+.small { font-size:14px; color:var(--text3); }
+.badge { display:inline-block; background:var(--brandSoft); color:var(--onBrandSoft); border-radius:8px; padding:2px 8px; font-size:14px; font-weight:600; }
+.eq { font-weight:700; color:var(--ink); white-space:nowrap; }
+button {
+  font:inherit; font-size:16px; min-height:48px; padding:8px 16px; border-radius:14px; cursor:pointer;
+  border:1px solid var(--border); background:var(--sunken); color:var(--ink);
+}
+button:disabled { opacity:.45; cursor:not-allowed; }
+button.primary { display:block; width:100%; min-height:56px; margin-top:16px; font-size:17px; font-weight:700; background:var(--brand); color:var(--onBrand); border-color:var(--brand); }
+button.primary:active:not(:disabled) { background:var(--brandPressed); }
+button.text { background:none; border:none; text-decoration:underline; font-weight:600; padding:8px 4px; }
+button[aria-pressed="true"] { border:2px solid var(--sel); font-weight:700; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, label:focus-within { outline:3px solid var(--focus); outline-offset:2px; }
+fieldset { border:0; margin:0 0 16px; padding:0; min-width:0; }
+legend { font-weight:700; font-size:17px; color:var(--ink); padding:0; margin-bottom:8px; }
+.opt { display:flex; gap:10px; align-items:flex-start; min-height:48px; padding:12px; margin:8px 0; border:1px solid var(--border); border-radius:12px; background:var(--sunken); cursor:pointer; color:var(--ink); }
+.opt input { margin:4px 0 0; width:20px; height:20px; flex:none; accent-color:var(--progress); }
+.opt:has(input:checked) { border:2px solid var(--sel); padding:11px; font-weight:600; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; }
+.chips .opt { margin:0; padding:8px 12px; min-height:44px; align-items:center; }
+.chips .opt input { margin:0; }
+.chips .opt:has(input:checked) { padding:7px 11px; }
+.scale { display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; }
+.scale .opt { flex-direction:column; align-items:center; justify-content:center; margin:0; padding:8px 2px; text-align:center; font-size:18px; font-weight:700; }
+.scale .opt input { margin:0; }
+.scale .opt:has(input:checked) { padding:7px 1px; }
+.scaleEnds { display:flex; justify-content:space-between; font-size:14px; color:var(--text3); margin-top:4px; }
+textarea { width:100%; min-height:96px; font:inherit; font-size:16px; padding:12px; border-radius:12px; border:1px solid var(--border); background:var(--sunken); color:var(--ink); }
+.hint { font-size:14px; color:var(--text3); margin:8px 0 0; text-align:center; }
+svg.fig { display:block; width:100%; height:auto; margin:0 auto; touch-action:pan-y; }
+.lbl { font:700 16px system-ui, sans-serif; fill:var(--ink); }
+.tick { font:13px system-ui, sans-serif; fill:var(--text3); }
+.halo { paint-order:stroke; stroke:var(--surface); stroke-width:5px; stroke-linejoin:round; fill:var(--ink); }
+.readout { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; font-size:15px; color:var(--text2); margin:8px 2px 0; }
+.readout b { font-variant-numeric:tabular-nums; }
+.controls { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.controls button { flex:1 1 auto; }
+input[type=range] { width:100%; min-height:48px; accent-color:var(--progress); }
+.row { margin-top:12px; }
+.row > label { display:block; font-size:16px; color:var(--text2); margin-bottom:2px; }
+.predict { border:2px solid var(--sel); }
+.ok { color:var(--success); font-weight:700; }
+.no { color:var(--danger); font-weight:700; }
+.check li { list-style:none; margin-left:-22px; }
+.check li::before { content:"○ "; color:var(--text3); }
+.check li.done::before { content:"● "; color:var(--ink); }
+.check li.done { color:var(--ink); }
+table { width:100%; border-collapse:collapse; font-size:15px; }
+th, td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--divider); vertical-align:top; font-variant-numeric:tabular-nums; }
+th { color:var(--text2); font-weight:600; }
+.scrollx { overflow-x:auto; }
+pre { white-space:pre-wrap; word-break:break-all; font:13px/1.5 "SF Mono", "Roboto Mono", ui-monospace, monospace; background:var(--sunken); padding:12px; border-radius:12px; max-height:240px; overflow:auto; color:var(--text2); }
+</style>
+</head>
+<body>
+<main>
+  <div class="top" id="top">
+    <p class="over">Volty 학습 방식 셀프 테스트 · 초안(전문가 검수 전)</p>
+    <div class="prog" aria-hidden="true"><div id="progBar"></div></div>
+    <p class="over" id="stepLbl" aria-live="polite"></p>
+  </div>
+
+  <!-- 1. 소개 · 동의 -->
+  <section id="s-intro" data-step="1">
+    <h1>도는 화살표와 사인파, 5분 학습 테스트</h1>
+    <p>전기기사 공부 앱 볼티(Volty)가 개념을 어떤 방식으로 보여 줄 때 더 잘 이해되는지 알아보는 짧은 테스트예요. <b>약 5분</b> 걸려요.</p>
+    <div class="card">
+      <ul>
+        <li>문제 2개 → 짧은 학습 → 문제 4개 → 느낌 2가지 순서예요.</li>
+        <li>학습 화면은 두 가지 방식 중 하나가 무작위로 나와요.</li>
+        <li>시험이 아니에요. 모르면 "잘 모르겠어요"를 고르세요.</li>
+        <li><b>이름·연락처·이메일은 묻지 않아요.</b> 답은 이 기기 안에만 저장돼요.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>나에 대해 (선택)</h2>
+      <p class="small">고르지 않아도 돼요. 아래 세 가지 말고는 묻지 않아요.</p>
+      <div id="profile"></div>
+    </div>
+    <div class="card">
+      <h2>동의</h2>
+      <p>익명 답변(문제 응답, 별점, 걸린 시간, 위에서 고른 항목)을 <b>볼티 개선에만</b> 쓰는 데 동의하시나요? 동의하지 않아도 기록 없이 해 볼 수 있어요.</p>
+      <button type="button" class="primary" id="btnConsent">동의하고 시작하기</button>
+      <p style="text-align:center;margin:8px 0 0"><button type="button" class="text" id="btnNoConsent">동의하지 않고 기록 없이 해 보기</button></p>
+    </div>
+  </section>
+
+  <!-- 2. 사전 문제 -->
+  <section id="s-pre" data-step="2" hidden>
+    <h1>먼저, 지금 생각대로 골라 보세요</h1>
+    <p>정답을 몰라도 괜찮아요. 아직 설명을 보기 전이에요.</p>
+    <div class="card" id="preQs"></div>
+    <button type="button" class="primary" id="btnPre" disabled>다음</button>
+    <p class="hint">모든 문제에 답하면 넘어갈 수 있어요.</p>
+  </section>
+
+  <!-- 3. 학습 -->
+  <section id="s-learn" data-step="3" hidden>
+    <h1>정현파와 페이저</h1>
+    <div class="card" id="easyText">
+      <span class="badge">한 마디로</span>
+      <p style="margin-top:8px"><b>쉽게 말해 순시값은 '바로 그 순간'의 전압 값이에요. 페이저는 시간 부분을 빼고 크기·각도만 남긴 화살표예요.</b></p>
+      <h3>정현파와 순시값</h3>
+      <p>정현파는 최대값·각주파수·초기 위상 세 값으로 정해져요. 식으로는 <span class="eq">v(t) = V<sub>m</sub> sin(ωt + θ)</span>예요.</p>
+      <p>순시값은 어느 한 순간의 전압·전류 값이에요. <span class="eq">v = 100 sin(120πt) V</span>에서 t = 1/720 s면 위상이 30°라 50 V, t = 1/80 s면 −100 V예요. 음수는 작다는 뜻이 아니라, 기준 극성과 방향이 반대라는 뜻이에요.</p>
+      <p>초기 위상 θ가 있으면 각도 ωt에 θ를 <b>더한 뒤</b> sin을 계산해요.</p>
+      <h3>페이저</h3>
+      <p>한 회로가 모두 같은 주파수면 ωt 부분이 같아서 빼고 적어요. <span class="eq">v = 100√2 sin(ωt + 30°) V</span>는 페이저로 <span class="eq">100∠30° V</span>예요. 이 단원은 크기를 실효값으로 써서 <span class="eq">√2V sin(ωt + θ) → V∠θ</span>예요. 즉 최대값 = √2 × 실효값이에요. 같은 주파수의 정상 상태, 선형 회로에서만 써요.</p>
+      <p>같은 주파수의 <span class="eq">i = 5√2 sin(ωt − 60°) A</span>는 <span class="eq">5∠−60° A</span>예요. 각도 차이 30° − (−60°) = 90°만큼 전압이 앞서요.</p>
+      <h3>용어 풀이</h3>
+      <ul>
+        <li><b>순시값</b>: 한 순간의 전압·전류 값</li>
+        <li><b>각주파수</b>: 1초에 위상이 나아가는 각도</li>
+        <li><b>초기 위상</b>: 시각 0에서 사인의 출발 각도</li>
+        <li><b>페이저</b>: 크기·각도로 적은 정현파</li>
+      </ul>
+    </div>
+
+    <!-- 팔 V: 조작형 그림 -->
+    <div class="card" id="armV" hidden>
+      <h2>직접 돌려 보기</h2>
+      <div class="sunk predict" id="p1Box">
+        <fieldset style="margin:0">
+          <legend>먼저 예측해 보세요: v = 100 sin ωt V(θ = 0°)예요. 화살이 몇 도를 가리킬 때 v가 처음으로 최대가 될까?</legend>
+          <div class="chips">
+            <label class="opt"><input type="radio" name="p1" value="0"><span>0°</span></label>
+            <label class="opt"><input type="radio" name="p1" value="1"><span>90°</span></label>
+            <label class="opt"><input type="radio" name="p1" value="2"><span>180°</span></label>
+          </div>
+        </fieldset>
+        <p id="p1Msg" class="small" aria-live="polite" style="margin:8px 0 0">예측을 고르면 그림을 움직일 수 있어요.</p>
+      </div>
+      <svg class="fig" id="figV" viewBox="0 0 480 262" role="img" aria-labelledby="figVt figVd"><title id="figVt">도는 화살표와 사인파(조작 가능)</title><desc id="figVd"></desc></svg>
+      <div class="readout" aria-hidden="true">
+        <span>시간(전기각) ωt <b id="roT">30°</b></span>
+        <span>화살 각도 ωt + θ <b id="roA">30°</b></span>
+        <span>순시값 v <b id="roV">50.0 V</b></span>
+        <span id="roIw" hidden>순시값 i <b id="roI">—</b></span>
+      </div>
+      <div class="controls">
+        <button type="button" id="vPlay" disabled>재생</button>
+        <button type="button" id="vTheta" aria-pressed="false" disabled>θ = 30°로 바꾸기</button>
+        <button type="button" id="vRms" aria-pressed="false" disabled>실효값 선 보기</button>
+      </div>
+      <div class="row">
+        <label for="vScrub">시간 ωt — 끌어서 멈춰 보기 (원 안을 끌어 화살을 돌려도 돼요)</label>
+        <input id="vScrub" type="range" min="0" max="360" step="1" value="30" aria-valuetext="전기각 30도" disabled>
+      </div>
+      <p id="vLive" class="small" aria-live="polite" style="margin-top:8px"></p>
+      <div class="sunk predict" id="p2Box">
+        <fieldset style="margin:0">
+          <legend>예측 2: 전류 화살이 전압보다 90° 뒤에 있으면, 어느 파형이 먼저 최대가 될까?</legend>
+          <div class="chips">
+            <label class="opt"><input type="radio" name="p2" value="0"><span>전압 v</span></label>
+            <label class="opt"><input type="radio" name="p2" value="1"><span>전류 i</span></label>
+          </div>
+        </fieldset>
+        <p id="p2Msg" class="small" aria-live="polite" style="margin:8px 0 0">예측을 고르면 "전류도 함께 보기"가 열려요.</p>
+        <button type="button" id="vPair" aria-pressed="false" disabled style="width:100%;margin-top:8px">전류도 함께 보기 (먼저 예측)</button>
+      </div>
+      <h3>그림 읽는 법</h3>
+      <ol>
+        <li>화살은 원 위를 반시계로 돌아요. 화살 각도는 ωt + θ예요.</li>
+        <li>화살 끝의 높이가 그 순간의 값(순시값)이에요. 오른쪽 사인파는 그 높이를 시간 순서로 이어 그린 거예요.</li>
+        <li>화살 길이가 최대값이에요. 최대값 = √2 × 실효값이라, 100∠30° V는 길이 약 141.4 V로 돌아요.</li>
+        <li id="vFact4" hidden>반시계로 더 돌아간 화살이 앞서요. 전압(30°)이 전류(−60°)보다 90° 앞서서, 전압은 ωt = 60°, 전류는 150°에서 최대가 돼요.</li>
+      </ol>
+      <h3>해 볼 것</h3>
+      <ul class="check" id="vChecklist">
+        <li data-k="play">재생·멈춤 눌러 보기</li>
+        <li data-k="scrub">시간 막대나 화살을 끌어 보기</li>
+        <li data-k="theta">θ = 30°로 바꿔 보기</li>
+        <li data-k="rms">"실효값 선 보기" 켜 보기</li>
+        <li data-k="pair">예측한 뒤 "전류도 함께 보기"로 확인하기</li>
+      </ul>
+    </div>
+
+    <!-- 팔 T: 글 + 정지 그림 -->
+    <div class="card" id="armT" hidden>
+      <h2>그림으로 보기</h2>
+      <svg class="fig" id="figT" viewBox="0 0 480 262" role="img" aria-labelledby="figTt figTd"><title id="figTt">전압·전류 화살표와 사인파(ωt = 0 순간)</title><desc id="figTd">ωt = 0 순간. 전압 화살(굵은 실선)은 30°, 길이 141.4 V로 순시값 70.7 V. 전류 화살(파랑 점선)은 −60°, 길이 7.07 A로 순시값 −6.12 A. 오른쪽 사인파에서 전압은 ωt = 60°, 전류는 150°에서 최대입니다. 주황 점선은 전압 실효값 100 V 높이입니다.</desc></svg>
+      <p class="small" style="margin-top:8px">ωt = 0 순간: 전압 화살(굵은 실선)은 30°를 가리켜 v = 141.4 × sin 30° = 70.7 V, 전류 화살(파랑 점선)은 −60°를 가리켜 i = 7.07 × sin(−60°) ≈ −6.12 A예요. 시간이 지나면 두 화살이 같은 빠르기로 반시계로 돌아요. 전압은 ωt = 60°, 전류는 150°에서 최대가 돼요. 주황 점선은 전압 실효값 100 V 높이예요(최대 141.4 V의 1/√2). 전압·전류는 배율을 따로 맞췄어요.</p>
+      <p class="small">예 1: v = 100 sin ωt V라면 화살 각도 30°에서 50 V, 90°(위쪽)에서 최대 100 V, 180°에서 0, 270°에서 −100 V예요.</p>
+      <h3>그림 읽는 법</h3>
+      <ol>
+        <li>화살은 원 위를 반시계로 돌아요. 화살 각도는 ωt + θ예요.</li>
+        <li>화살 끝의 높이가 그 순간의 값(순시값)이에요. 오른쪽 사인파는 그 높이를 시간 순서로 이어 그린 거예요.</li>
+        <li>화살 길이가 최대값이에요. 최대값 = √2 × 실효값이라, 100∠30° V는 길이 약 141.4 V로 돌아요.</li>
+        <li>반시계로 더 돌아간 화살이 앞서요. 전압(30°)이 전류(−60°)보다 90° 앞서서, 전압은 ωt = 60°, 전류는 150°에서 최대가 돼요.</li>
+      </ol>
+    </div>
+    <button type="button" class="primary" id="btnLearn">다 봤어요, 문제 풀기</button>
+    <p class="hint" id="hintLearn" hidden>위의 예측 질문 두 개에 먼저 답해 주세요.</p>
+  </section>
+
+  <!-- 4. 사후 문제 -->
+  <section id="s-post" data-step="4" hidden>
+    <h1>방금 본 내용으로 답해 보세요</h1>
+    <p>앞에서 본 문제도 있고 새 문제도 있어요. 다시 돌아가 볼 수는 없어요.</p>
+    <div class="card" id="postQs"></div>
+    <button type="button" class="primary" id="btnPost" disabled>다음</button>
+    <p class="hint">모든 문제에 답하면 넘어갈 수 있어요.</p>
+  </section>
+
+  <!-- 5. 느낌 -->
+  <section id="s-rate" data-step="5" hidden>
+    <h1>마지막으로, 느낌을 알려 주세요</h1>
+    <div class="card" id="rateQs"></div>
+    <div class="card">
+      <label for="confusing"><b>가장 헷갈린 점</b> <span class="small">(선택)</span></label>
+      <p class="small" style="margin:4px 0 8px">이름·연락처는 적지 마세요. 적어도 자동으로 지워요.</p>
+      <textarea id="confusing" maxlength="300" placeholder="예: 왜 화살 끝 높이가 순시값인지 모르겠어요"></textarea>
+    </div>
+    <button type="button" class="primary" id="btnRate" disabled>제출하기</button>
+    <p class="hint">별점 두 개에 답하면 제출할 수 있어요.</p>
+  </section>
+
+  <!-- 6. 감사 -->
+  <section id="s-done" data-step="6" hidden>
+    <h1>고맙습니다!</h1>
+    <p id="doneSaved"></p>
+    <div class="card" id="doneScore"></div>
+    <div class="card" id="doneExplain"></div>
+    <div class="card" id="doneExport">
+      <h2>결과 보내기</h2>
+      <p>결과는 이 기기 안에만 있어요. 테스트를 부탁한 사람에게 보내려면 복사해서 메시지에 붙여 넣어 주세요. 이름이나 연락처는 들어 있지 않아요.</p>
+      <button type="button" id="btnSend" style="width:100%;margin-bottom:8px" hidden>결과 보내기</button>
+      <button type="button" id="btnCopy" style="width:100%">결과 복사</button>
+      <p class="small" id="copyMsg" aria-live="polite" style="margin:8px 0 0"></p>
+      <pre id="doneJson"></pre>
+    </div>
+    <p style="text-align:center"><button type="button" class="text" id="btnRestart">처음 화면으로</button></p>
+  </section>
+
+  <!-- 관리자(테스트용) -->
+  <section id="s-admin" hidden>
+    <h1>로컬 응답 집계 (테스트용)</h1>
+    <p>이 기기 localStorage에 있는 응답만 셉니다. n이 작으면 차이를 결론으로 쓰지 마세요.</p>
+    <div class="card scrollx" id="admSummary"></div>
+    <div class="card scrollx" id="admItems"></div>
+    <div class="card" id="admText"></div>
+    <div class="card">
+      <h2>가져오기 · 내보내기</h2>
+      <p class="small">참가자가 보낸 "결과 복사" 내용을 붙여 넣으면 이 기기 집계에 더해요(같은 responseId는 한 번만).</p>
+      <textarea id="admImport" placeholder='{"schema":"volty.selftest.phasor-sine", ...} 또는 [ ... ]'></textarea>
+      <div class="controls">
+        <button type="button" id="admBtnImport">붙여 넣은 응답 더하기</button>
+        <button type="button" id="admBtnCopy">전체 JSON 복사</button>
+        <button type="button" id="admBtnClear">이 기기 응답 모두 지우기</button>
+      </div>
+      <p class="small" id="admMsg" aria-live="polite"></p>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var SCHEMA = 'volty.selftest.phasor-sine', SCHEMA_VERSION = 1, PAGE_VERSION = '0.1.0';
+  var STORE_KEY = 'volty.selftest.phasor-sine.v1';
+  var q = new URLSearchParams(location.search);
+  if (q.get('theme') === 'dark' || q.get('theme') === 'light') document.documentElement.setAttribute('data-theme', q.get('theme'));
+  var reduced = q.get('rm') === '1' || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function $(id) { return document.getElementById(id); }
+  function each(list, fn) { Array.prototype.forEach.call(list, fn); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function randHex(n) {
+    var a = new Uint8Array(n);
+    if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(a); else for (var i = 0; i < n; i++) a[i] = Math.floor(Math.random() * 256);
+    return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+  }
+  function rand01() { return parseInt(randHex(4), 16) / 4294967296; }
+
+  /* ---------------- 저장 어댑터 (rotating-field와 같은 인터페이스) ----------------
+     store: { name, save(resp) → Promise<{ok, via}>, list() → Promise<resp[]>, clear() → Promise }
+     (a) localStore: 기본값. 이 기기 localStorage + 화면의 "결과 복사"로 내보낸다.
+     (b) backendStub: 나중 서버 자리표시. 어떤 URL에도 연결하지 않는다(배포·수집은 사용자 승인 후). 항상 실패 → 로컬로 대체. */
+  var localStore = {
+    name: 'local',
+    _read: function () { try { var v = JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } },
+    _write: function (arr) { localStorage.setItem(STORE_KEY, JSON.stringify(arr)); },
+    save: function (resp) {
+      try { var all = this._read(); all.push(resp); this._write(all); return Promise.resolve({ ok: true, via: 'local' }); }
+      catch (e) { return Promise.resolve({ ok: false, via: 'local', error: String(e && e.message || e) }); }
+    },
+    list: function () { return Promise.resolve(this._read()); },
+    importMany: function (items) {
+      var all = this._read(), seen = {}, added = 0;
+      all.forEach(function (r) { seen[r.responseId] = 1; });
+      items.forEach(function (r) { if (r && r.schema === SCHEMA && r.responseId && !seen[r.responseId]) { all.push(r); seen[r.responseId] = 1; added++; } });
+      try { this._write(all); } catch (e) { return Promise.reject(e); }
+      return Promise.resolve(added);
+    },
+    clear: function () { try { localStorage.removeItem(STORE_KEY); } catch (e) {} return Promise.resolve(); }
+  };
+  var backendStub = {
+    name: 'backend-stub',
+    endpoint: null, // 의도적으로 비어 있음. 서버 주소를 넣는 것은 사용자 승인 사항이다.
+    save: function () { return Promise.reject(new Error('backend-stub: 연결된 서버 없음')); },
+    list: function () { return Promise.resolve([]); },
+    clear: function () { return Promise.resolve(); }
+  };
+  function withFallback(primary, fallback) {
+    return {
+      name: primary.name + '→' + fallback.name,
+      save: function (resp) { return primary.save(resp).catch(function () { return fallback.save(resp); }); },
+      list: function () { return fallback.list(); },
+      clear: function () { return fallback.clear(); }
+    };
+  }
+  var store = q.get('store') === 'stub' ? withFallback(backendStub, localStore) : localStore;
+
+  /* ---------------- 문제 ----------------
+     선택지 k = 오개념 꼬리표(README 2절). dk = 잘 모르겠어요(오답으로 셈). 수치는 README 3절 검산. */
+  var DK = { k: 'dk', t: '잘 모르겠어요' };
+  var Q = {
+    instant: {
+      text: 'v = 100 sin(ωt + 30°) V예요. ωt = 60°인 순간 v는 몇 V일까요?',
+      options: [{ k: 'ignorePhase', t: '약 86.6 V' }, { k: 'subtractPhase', t: '50 V' }, { k: 'correct', t: '100 V' }, { k: 'angleAsValue', t: '90 V (60 + 30이니까)' }, DK],
+      answer: 'correct',
+      explain: '각도에 θ를 더해요: 60° + 30° = 90°. v = 100 × sin 90° = 100 V(최대)예요. θ를 빼먹으면 sin 60°로 86.6 V, 빼면 sin 30°로 50 V가 나와요.'
+    },
+    lag: {
+      text: '같은 주파수의 전압 v와 전류 i가 있어요. 전류가 전압보다 30° 뒤져요(늦어요). 시간이 흐를 때 최대값에 먼저 닿는 쪽은?',
+      options: [{ k: 'current', t: '전류 i가 먼저' }, { k: 'voltage', t: '전압 v가 먼저' }, { k: 'same', t: '같은 주파수라 동시에' }, { k: 'bigger', t: '크기가 큰 쪽이 먼저' }, DK],
+      answer: 'voltage',
+      explain: '뒤진다는 건 같은 일이 늦게 일어난다는 뜻이에요. 전압이 먼저 최대가 되고, 전류는 ωt로 30° 뒤에 최대가 돼요. 크기와는 상관없어요.'
+    },
+    rms: {
+      text: '정현파에서 실효값은 최대값의 몇 배일까요?',
+      options: [{ k: 'sqrt2', t: '√2 배 (약 1.414배)' }, { k: 'half', t: '1/2 배' }, { k: 'avg', t: '2/π 배 (약 0.637배)' }, { k: 'invSqrt2', t: '1/√2 배 (약 0.707배)' }, DK],
+      answer: 'invSqrt2',
+      explain: '최대값 = √2 × 실효값이므로 실효값 = 최대값 ÷ √2 ≈ 0.707 × 최대값이에요. 100∠30° V는 최대 141.4 V예요. 2/π(0.637)는 평균값 쪽 숫자예요.'
+    },
+    leadLag2: {
+      text: '같은 주파수의 v = 141 sin(ωt + 20°) V, i = 7 sin(ωt − 40°) A예요. 둘의 위상 관계는?',
+      options: [{ k: 'iLeads', t: 'i가 60° 앞선다' }, { k: 'vLeads', t: 'v가 60° 앞선다' }, { k: 'vLeads20', t: 'v가 20° 앞선다' }, { k: 'noCompare', t: '크기와 단위가 달라 비교할 수 없다' }, DK],
+      answer: 'vLeads',
+      explain: '각도 차이는 20° − (−40°) = 60°이고, 반시계로 더 돌아간 v가 60° 앞서요. 크기·단위가 달라도 같은 주파수면 위상은 비교할 수 있어요.'
+    }
+  };
+  var PRE = ['instant', 'lag'];
+  var POST = ['lag', 'rms', 'instant', 'leadLag2'];   // 같은 두 문제는 순서를 바꾸고 새 문제를 사이에 둔다
+  var SAME = ['instant', 'lag'], TRANSFER = ['rms', 'leadLag2'];
+  var PROFILE = [
+    { id: 'major', label: '전공', options: [['electric', '전기 관련 전공'], ['nonElectric', '비전공'], ['na', '말하지 않음']] },
+    { id: 'ageBand', label: '나이대', options: [['u30', '30대 미만'], ['30s', '30대'], ['40s', '40대'], ['50s', '50대'], ['60p', '60대 이상'], ['na', '말하지 않음']] },
+    { id: 'examStage', label: '전기기사 준비 단계', options: [['notStarted', '아직 시작 전'], ['written', '필기 공부 중'], ['practical', '필기 합격, 실기 준비'], ['holder', '이미 자격 있음'], ['na', '말하지 않음']] }
+  ];
+
+  /* ---------------- 응답 상태 ---------------- */
+  var resp = null, answers = { pre: {}, post: {} }, profile = {}, ratings = {}, p1 = null, p2 = null;
+  var timing = {}, screenStart = 0, current = null, startedAt = 0;
+  var log = { play: 0, scrub: 0, drag: 0, theta: 0, rms: 0, pair: 0 };
+
+  function radioGroup(name, options) {
+    return options.map(function (o) {
+      return '<label class="opt"><input type="radio" name="' + name + '" value="' + esc(o[0]) + '"><span>' + esc(o[1]) + '</span></label>';
+    }).join('');
+  }
+  function onRadio(name, fn) { each(document.getElementsByName(name), function (inp) { inp.addEventListener('change', function () { fn(inp.value); }); }); }
+  $('profile').innerHTML = PROFILE.map(function (g) {
+    return '<fieldset><legend>' + esc(g.label) + '</legend><div class="chips">' + radioGroup('pf_' + g.id, g.options) + '</div></fieldset>';
+  }).join('');
+  PROFILE.forEach(function (g) { onRadio('pf_' + g.id, function (v) { profile[g.id] = v; }); });
+
+  function renderQs(container, ids, phase, btn) {
+    container.innerHTML = ids.map(function (id, i) {
+      return '<fieldset><legend>' + (i + 1) + '. ' + esc(Q[id].text) + '</legend>' +
+        radioGroup(phase + '_' + id, Q[id].options.map(function (o) { return [o.k, o.t]; })) + '</fieldset>';
+    }).join('');
+    ids.forEach(function (id) {
+      onRadio(phase + '_' + id, function (v) { answers[phase][id] = v; btn.disabled = ids.some(function (x) { return !answers[phase][x]; }); });
+    });
+  }
+  renderQs($('preQs'), PRE, 'pre', $('btnPre'));
+  renderQs($('postQs'), POST, 'post', $('btnPost'));
+
+  var RATE = [
+    { id: 'understood', label: '이해됐다', lo: '전혀 아니다', hi: '매우 그렇다' },
+    { id: 'wantMore', label: '다른 개념도 이렇게 배우고 싶다', lo: '전혀 아니다', hi: '매우 그렇다' }
+  ];
+  $('rateQs').innerHTML = RATE.map(function (r) {
+    return '<fieldset><legend>' + esc(r.label) + '</legend><div class="scale">' +
+      [1, 2, 3, 4, 5].map(function (n) { return '<label class="opt"><input type="radio" name="rt_' + r.id + '" value="' + n + '" aria-label="' + n + '점"><span>' + n + '</span></label>'; }).join('') +
+      '</div><div class="scaleEnds"><span>1 ' + esc(r.lo) + '</span><span>5 ' + esc(r.hi) + '</span></div></fieldset>';
+  }).join('');
+  RATE.forEach(function (r) {
+    onRadio('rt_' + r.id, function (v) { ratings[r.id] = +v; $('btnRate').disabled = RATE.some(function (x) { return !ratings[x.id]; }); });
+  });
+
+  /* ---------------- 화면 전환 · 시간 ---------------- */
+  var STEP_NAMES = { 1: '소개', 2: '사전 문제', 3: '학습', 4: '사후 문제', 5: '느낌', 6: '끝' };
+  function show(id) {
+    var now = performance.now();
+    if (current) timing[current] = (timing[current] || 0) + (now - screenStart);
+    if (current === 's-learn') setPlaying(false);
+    each(document.querySelectorAll('main > section'), function (s) { s.hidden = s.id !== id; });
+    current = id; screenStart = now;
+    var sec = $(id), step = +sec.getAttribute('data-step') || 0;
+    $('top').hidden = !step;
+    $('progBar').style.width = (step ? (step - 1) / 5 * 100 : 0) + '%';
+    $('stepLbl').textContent = step && step < 6 ? step + ' / 5 · ' + STEP_NAMES[step] : (step === 6 ? '완료' : '');
+    window.scrollTo(0, 0);
+    var h = sec.querySelector('h1'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
+    if (id === 's-learn' && resp.arm === 'V') renderV();
+  }
+  function sec(ms) { return Math.round((ms || 0) / 100) / 10; }
+
+  function begin(consent) {
+    var forced = q.get('arm') === 'V' || q.get('arm') === 'T' ? q.get('arm') : null;
+    resp = {
+      schema: SCHEMA, schemaVersion: SCHEMA_VERSION, pageVersion: PAGE_VERSION,
+      responseId: 'ps-' + randHex(8),
+      createdAt: new Date().toISOString(),
+      consent: consent,
+      arm: forced || (rand01() < 0.5 ? 'V' : 'T'),
+      assignment: forced ? 'forced' : 'random',
+      contentRef: { conceptIds: ['CAND-1101', 'CAND-1107'], version: '0.1.0', status: 'draft · pending_sme_review' }
+    };
+    startedAt = performance.now();
+    $('armV').hidden = resp.arm !== 'V';
+    $('armT').hidden = resp.arm !== 'T';
+    show('s-pre');
+  }
+  $('btnConsent').addEventListener('click', function () { begin(true); });
+  $('btnNoConsent').addEventListener('click', function () { begin(false); });
+  $('btnPre').addEventListener('click', function () { show('s-learn'); });
+  $('btnLearn').addEventListener('click', function () {
+    if (resp.arm === 'V' && (p1 === null || p2 === null)) { $('hintLearn').hidden = false; (p1 === null ? $('p1Box') : $('p2Box')).scrollIntoView({ block: 'center' }); return; }
+    show('s-post');
+  });
+  $('btnPost').addEventListener('click', function () { show('s-rate'); });
+  $('btnRate').addEventListener('click', submit);
+  $('btnRestart').addEventListener('click', function () { location.reload(); });
+
+  /* ---------------- 물리: 정현파 = 도는 화살의 세로 성분 ----------------
+     화살 각도(수학 각, 반시계 +) = ωt + θ. 순시값 = 최대값 × sin(ωt + θ) = 화살 끝의 높이.
+     single: v = 100 sin(ωt + θ) V, θ ∈ {0°, 30°} (CAND-1101).
+     pair: v = 100√2 sin(ωt + 30°) V ↔ 100∠30° V, i = 5√2 sin(ωt − 60°) A ↔ 5∠−60° A (CAND-1107, 실효값 페이저). */
+  function rad(d) { return d * Math.PI / 180; }
+  function norm(d) { return ((d % 360) + 360) % 360; }
+  function phasors(mode, theta) {
+    return mode === 'pair'
+      ? [{ k: 'v', amp: 100 * Math.SQRT2, th: 30, unit: 'V' }, { k: 'i', amp: 5 * Math.SQRT2, th: -60, unit: 'A' }]
+      : [{ k: 'v', amp: 100, th: theta, unit: 'V' }];
+  }
+  function inst(p, wt) { return p.amp * Math.sin(rad(wt + p.th)); }
+  // 처음으로 최대가 되는 ωt(0 ≤ ωt < 360): sin(ωt + θ) = 1 → ωt = 90° − θ (mod 360)
+  function firstMaxWt(p) { return norm(90 - p.th); }
+
+  /* ---------------- 그림 ----------------
+     왼쪽: 원(중심 CX, CY), 오른쪽: 사인파(ωt 0~360° → X0~X0+W). 전압 배율 VS(141.4 V → R px), 전류 배율 IS(7.07 A → 0.6R px). */
+  var NS = 'http://www.w3.org/2000/svg', CX = 112, CY = 118, R = 92, X0 = 232, W = 220;
+  var SC = { V: R / (100 * Math.SQRT2), A: 0.6 * R / (5 * Math.SQRT2) };
+  function el(name, attrs, parent) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function tip(p, wt) { var a = rad(wt + p.th), r = p.amp * SC[p.unit]; return [CX + r * Math.cos(a), CY - r * Math.sin(a)]; }
+  function waveX(wt) { return X0 + W * wt / 360; }
+  function waveY(p, wt) { return CY - inst(p, wt) * SC[p.unit]; }
+  function wavePath(p, to) {
+    var d = '', n = Math.max(1, Math.round(to / 2));
+    for (var k = 0; k <= n; k++) { var w = to * k / n; d += (k ? 'L' : 'M') + waveX(w).toFixed(1) + ' ' + waveY(p, w).toFixed(1); }
+    return d;
+  }
+  function head(x1, y1, x2, y2) {
+    var dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, s = Math.min(1, L / 24), l = 14 * s, w = 7 * s;
+    var bx = x2 - ux * l, by = y2 - uy * l;
+    return 'M' + x2.toFixed(1) + ' ' + y2.toFixed(1) + 'L' + (bx - uy * w).toFixed(1) + ' ' + (by + ux * w).toFixed(1) + 'L' + (bx + uy * w).toFixed(1) + ' ' + (by - ux * w).toFixed(1) + 'Z';
+  }
+  var STYLE = { v: { stroke: 'var(--ink)', fill: 'var(--brand)', dash: '' }, i: { stroke: 'var(--cur)', fill: 'var(--cur)', dash: '7 5' } };
+  function buildFigure(svg) {
+    el('line', { x1: CX - R - 8, y1: CY, x2: CX + R + 8, y2: CY, stroke: 'var(--axis)', 'stroke-width': 1.5 }, svg);
+    el('line', { x1: CX, y1: CY - R - 8, x2: CX, y2: CY + R + 8, stroke: 'var(--axis)', 'stroke-width': 1.5 }, svg);
+    var ring = el('circle', { cx: CX, cy: CY, r: R, fill: 'none', stroke: 'var(--ring)', 'stroke-width': 2, 'stroke-dasharray': '3 6' }, svg);
+    el('text', { x: CX + R + 4, y: CY - 6, class: 'tick' }, svg).textContent = '0°';
+    el('text', { x: CX + 6, y: CY - R - 2, class: 'tick' }, svg).textContent = '90°';
+    el('line', { x1: X0, y1: CY, x2: X0 + W, y2: CY, stroke: 'var(--axis)', 'stroke-width': 1.5 }, svg);
+    el('line', { x1: X0, y1: CY - R - 6, x2: X0, y2: CY + R + 6, stroke: 'var(--axis)', 'stroke-width': 1.5 }, svg);
+    [0, 90, 180, 270, 360].forEach(function (w) {
+      el('line', { x1: waveX(w), y1: CY - 4, x2: waveX(w), y2: CY + 4, stroke: 'var(--axis)', 'stroke-width': 1.5 }, svg);
+      el('text', { x: waveX(w), y: CY + R + 24, 'text-anchor': w === 360 ? 'end' : 'middle', class: 'tick' }, svg).textContent = w + '°';
+    });
+    el('text', { x: X0 + W, y: CY + R + 42, 'text-anchor': 'end', class: 'tick' }, svg).textContent = '시간 ωt →';
+    var rmsG = el('g', {}, svg);
+    var rmsLine = [el('line', { stroke: 'var(--rms)', 'stroke-width': 2, 'stroke-dasharray': '2 4' }, rmsG), el('line', { stroke: 'var(--rms)', 'stroke-width': 2, 'stroke-dasharray': '2 4' }, rmsG)];
+    var rmsTxt = el('text', { class: 'tick halo', 'text-anchor': 'end', style: 'fill:var(--rms)' }, rmsG);
+    var marker = el('line', { stroke: 'var(--axis)', 'stroke-width': 1.5 }, svg);
+    var parts = {};
+    ['i', 'v'].forEach(function (k) {   // 전압을 위에 그린다
+      var s = STYLE[k], g = el('g', {}, svg);
+      parts[k] = { g: g,
+        full: el('path', { fill: 'none', stroke: s.stroke, 'stroke-width': 2, opacity: 0.3, 'stroke-dasharray': s.dash }, g),
+        trace: el('path', { fill: 'none', stroke: s.stroke, 'stroke-width': 4, 'stroke-dasharray': s.dash, 'stroke-linecap': 'round' }, g),
+        proj: el('line', { stroke: s.stroke, 'stroke-width': 1.5, 'stroke-dasharray': '4 4', opacity: 0.7 }, g),
+        shaft: el('line', { stroke: s.stroke, 'stroke-width': k === 'v' ? 6 : 5, 'stroke-linecap': 'round', 'stroke-dasharray': s.dash }, g),
+        head: el('path', { fill: s.fill, stroke: s.stroke, 'stroke-width': 1.5 }, g),
+        dot: el('circle', { r: 6, fill: s.fill, stroke: s.stroke, 'stroke-width': 2 }, g),
+        lab: el('text', { class: 'lbl' }, g),
+        maxDot: el('circle', { r: 5, fill: 'none', stroke: s.stroke, 'stroke-width': 2 }, g),
+        maxTxt: el('text', { class: 'tick halo', 'text-anchor': 'middle' }, g) };
+    });
+    el('circle', { cx: CX, cy: CY, r: 5, fill: 'var(--ink)' }, svg);
+    ['i', 'v'].forEach(function (k) { svg.appendChild(parts[k].maxTxt); });   // 글자는 곡선 위에
+    svg.appendChild(rmsTxt);
+    // opts: {mode, theta, rms, full(bool: 정지 그림은 한 주기 전체를 진하게), maxMarks}
+    return function draw(wt, o) {
+      var ps = phasors(o.mode, o.theta), out = {};
+      ring.setAttribute('r', (ps[0].amp * SC.V).toFixed(1));
+      ['v', 'i'].forEach(function (k) { parts[k].g.style.display = 'none'; });
+      ps.forEach(function (p) {
+        var e = parts[p.k], t = tip(p, wt), x = waveX(wt), y = waveY(p, wt);
+        e.g.style.display = '';
+        e.full.setAttribute('d', wavePath(p, 360));
+        e.trace.setAttribute('d', o.full ? wavePath(p, 360) : wavePath(p, wt));
+        e.shaft.setAttribute('x1', CX); e.shaft.setAttribute('y1', CY);
+        e.shaft.setAttribute('x2', t[0].toFixed(1)); e.shaft.setAttribute('y2', t[1].toFixed(1));
+        e.head.setAttribute('d', head(CX, CY, t[0], t[1]));
+        e.proj.setAttribute('x1', t[0].toFixed(1)); e.proj.setAttribute('y1', t[1].toFixed(1));
+        e.proj.setAttribute('x2', x.toFixed(1)); e.proj.setAttribute('y2', y.toFixed(1));
+        e.dot.setAttribute('cx', x.toFixed(1)); e.dot.setAttribute('cy', y.toFixed(1));
+        var a = rad(wt + p.th);
+        e.lab.setAttribute('x', (t[0] + 14 * Math.cos(a) - 5).toFixed(1)); e.lab.setAttribute('y', (t[1] - 14 * Math.sin(a) + 6).toFixed(1));
+        e.lab.textContent = p.k;
+        var mw = firstMaxWt(p);
+        e.maxDot.style.display = e.maxTxt.style.display = o.maxMarks ? '' : 'none';
+        e.maxDot.setAttribute('cx', waveX(mw).toFixed(1)); e.maxDot.setAttribute('cy', waveY(p, mw).toFixed(1));
+        e.maxTxt.setAttribute('x', waveX(mw).toFixed(1)); e.maxTxt.setAttribute('y', (waveY(p, mw) - 10).toFixed(1));
+        e.maxTxt.textContent = p.k + ' 최대 ' + Math.round(mw) + '°';
+        out[p.k] = { value: inst(p, wt), tipY: t[1], waveY: y, angle: norm(wt + p.th), p: p };
+      });
+      marker.setAttribute('x1', waveX(wt).toFixed(1)); marker.setAttribute('x2', waveX(wt).toFixed(1));
+      marker.setAttribute('y1', CY - R - 6); marker.setAttribute('y2', CY + R + 6);
+      rmsG.style.display = rmsTxt.style.display = o.rms ? '' : 'none';
+      var rv = ps[0].amp / Math.SQRT2, ry = rv * SC.V;
+      [CY - ry, CY + ry].forEach(function (yy, k) {
+        rmsLine[k].setAttribute('x1', X0); rmsLine[k].setAttribute('x2', X0 + W);
+        rmsLine[k].setAttribute('y1', yy.toFixed(1)); rmsLine[k].setAttribute('y2', yy.toFixed(1));
+      });
+      rmsTxt.setAttribute('x', X0 + W); rmsTxt.setAttribute('y', (CY + ry + 16).toFixed(1));
+      rmsTxt.textContent = '실효값 ' + (Math.round(rv * 10) / 10) + ' V';
+      return out;
+    };
+  }
+
+  // 팔 T: 같은 그림, pair·ωt = 0 정지, 한 주기 전체와 최대 지점·실효값 선 표시
+  buildFigure($('figT'))(0, { mode: 'pair', theta: 30, rms: true, full: true, maxMarks: true });
+
+  /* ---------------- 팔 V: 조작형 ---------------- */
+  var sim = { wt: 30, playing: false, mode: 'single', theta: 0, rms: false, p1Seen: false };
+  var drawV = buildFigure($('figV')), SEC_PER_CYCLE = 8, lastDesc = '';
+  function mark(k) { var li = document.querySelector('#vChecklist [data-k="' + k + '"]'); if (li) li.classList.add('done'); }
+  function fmt(x, d) { var s = (Math.abs(x) < 0.05 ? 0 : x).toFixed(d); return s.replace('-', '−'); }
+  function renderV() {
+    var f = drawV(sim.wt, { mode: sim.mode, theta: sim.theta, rms: sim.rms, full: false, maxMarks: false });
+    var wt = Math.round(sim.wt) % 360;
+    $('roT').textContent = wt + '°';
+    $('roA').textContent = Math.round(f.v.angle) + '°';
+    $('roV').textContent = fmt(f.v.value, 1) + ' V';
+    $('roIw').hidden = !f.i;
+    if (f.i) $('roI').textContent = fmt(f.i.value, 2) + ' A';
+    $('vScrub').value = wt;
+    $('vScrub').setAttribute('aria-valuetext', '전기각 ' + wt + '도');
+    var d = sim.mode === 'pair'
+      ? '전압 화살 ' + Math.round(f.v.angle) + '도, v ' + fmt(f.v.value, 1) + '볼트. 전류 화살 ' + Math.round(f.i.angle) + '도, i ' + fmt(f.i.value, 2) + '암페어. 전압이 90도 앞서요.'
+      : 'v = 100 sin(ωt + ' + sim.theta + '°). 화살 ' + Math.round(f.v.angle) + '도, 순시값 ' + fmt(f.v.value, 1) + '볼트.';
+    if (d !== lastDesc) { $('figVd').textContent = d; lastDesc = d; }
+    // 예측 1 확인: θ = 0에서 화살이 90° 근처(최대)에 오면 결과를 보여 준다
+    if (p1 !== null && !sim.p1Seen && sim.mode === 'single' && sim.theta === 0 && Math.abs(f.v.angle - 90) <= 4) {
+      sim.p1Seen = true;
+      $('p1Msg').innerHTML = '<span class="' + (p1 === 1 ? 'ok">예측이 맞았어요.' : 'no">예측과 달라요.') + '</span> 화살 끝이 가장 높은 90°(위쪽)에서 v = 100·sin 90° = 100 V로 최대예요. 180°에서는 다시 0이에요.';
+    }
+  }
+  var last = null;
+  function tick(now) {
+    if (!sim.playing) { last = null; return; }
+    if (last !== null) sim.wt = (sim.wt + (now - last) / 1000 * 360 / SEC_PER_CYCLE) % 360;
+    last = now; renderV(); requestAnimationFrame(tick);
+  }
+  function setPlaying(p) {
+    if (sim.playing === p) return;
+    sim.playing = p;
+    $('vPlay').textContent = p ? '일시정지' : '재생';
+    if (p) requestAnimationFrame(tick);
+  }
+  onRadio('p1', function (v) {
+    var first = p1 === null;
+    p1 = +v;
+    $('hintLearn').hidden = true;
+    ['vPlay', 'vTheta', 'vRms', 'vScrub'].forEach(function (id) { $(id).disabled = false; });
+    if (first) $('p1Msg').innerHTML = '예측: <b>' + ['0°', '90°', '180°'][p1] + '</b>. 이제 재생하거나 화살을 끌어 v가 가장 커지는 곳을 찾아보세요.';
+    else if (!sim.p1Seen) $('p1Msg').innerHTML = '예측: <b>' + ['0°', '90°', '180°'][p1] + '</b>. 화살을 돌려 확인해 보세요.';
+  });
+  onRadio('p2', function (v) {
+    p2 = +v;
+    $('hintLearn').hidden = true;
+    $('vPair').disabled = false; $('vPair').textContent = '전류도 함께 보기';
+    $('p2Msg').innerHTML = '예측: <b>' + (p2 ? '전류 i' : '전압 v') + '</b>. 아래 "전류도 함께 보기"를 눌러 확인해 보세요.';
+  });
+  $('vPlay').addEventListener('click', function () { log.play++; mark('play'); setPlaying(!sim.playing); });
+  $('vScrub').addEventListener('input', function () { log.scrub++; mark('scrub'); setPlaying(false); sim.wt = +this.value; renderV(); });
+  $('vTheta').addEventListener('click', function () {
+    log.theta++; mark('theta');
+    if (sim.mode === 'pair') { sim.mode = 'single'; $('vPair').setAttribute('aria-pressed', 'false'); }
+    sim.theta = sim.theta === 0 ? 30 : 0;
+    this.setAttribute('aria-pressed', String(sim.theta === 30));
+    this.textContent = sim.theta === 30 ? 'θ = 0°로 되돌리기' : 'θ = 30°로 바꾸기';
+    $('vLive').textContent = sim.theta === 30 ? 'v = 100 sin(ωt + 30°): 화살이 30° 앞에서 출발해요. ωt = 60°면 화살이 90°라 v = 100 V(최대).' : 'v = 100 sin ωt: 화살 각도 = ωt예요.';
+    renderV();
+  });
+  $('vRms').addEventListener('click', function () {
+    log.rms++; mark('rms');
+    sim.rms = !sim.rms; this.setAttribute('aria-pressed', String(sim.rms));
+    $('vLive').textContent = sim.rms ? '주황 점선이 실효값 높이예요. 최대값(화살 길이)의 1/√2 ≈ 0.707배예요.' : '실효값 선을 껐어요.';
+    renderV();
+  });
+  $('vPair').addEventListener('click', function () {
+    log.pair++; mark('pair');
+    var on = sim.mode !== 'pair';
+    sim.mode = on ? 'pair' : 'single';
+    this.setAttribute('aria-pressed', String(on));
+    $('vFact4').hidden = false;
+    if (on && log.pair === 1) {
+      $('p2Msg').innerHTML = '<span class="' + (p2 === 0 ? 'ok">예측이 맞았어요.' : 'no">예측과 달라요.') + '</span> 화살은 반시계로 돌아요. 앞선 전압은 ωt = 60°에서, 90° 뒤진 전류는 150°에서 최대가 돼요.';
+      sim.wt = 0;
+      if (!reduced) setPlaying(true);
+    }
+    $('vLive').textContent = on ? '예제 2: v = 100√2 sin(ωt + 30°) V(100∠30° V), i = 5√2 sin(ωt − 60°) A(5∠−60° A). 전류(파랑 점선)는 배율을 따로 맞췄어요.' : '예제 1로 돌아왔어요: v = 100 sin(ωt + θ) V.';
+    renderV();
+  });
+  // 원 안을 끌면 전압 화살 각도 = 끈 방향이 되도록 ωt를 바꾼다. pan-y라서 세로로 밀면 페이지 스크롤.
+  var figV = $('figV');
+  function dragTo(ev) {
+    var r = figV.getBoundingClientRect(), s = 480 / r.width;
+    var x = (ev.clientX - r.left) * s - CX, y = (ev.clientY - r.top) * s - CY;
+    if (x > R + 30) { sim.wt = Math.max(0, Math.min(360, (x + CX - X0) / W * 360)); }   // 사인파 쪽을 끌면 시간 이동
+    else sim.wt = norm(Math.atan2(-y, x) * 180 / Math.PI - phasors(sim.mode, sim.theta)[0].th);
+    renderV();
+  }
+  figV.addEventListener('pointerdown', function (ev) {
+    if (p1 === null) { $('p1Box').scrollIntoView({ block: 'center' }); return; }
+    log.drag++; mark('scrub'); setPlaying(false); figV.setPointerCapture(ev.pointerId); dragTo(ev);
+  });
+  figV.addEventListener('pointermove', function (ev) { if (figV.hasPointerCapture(ev.pointerId)) dragTo(ev); });
+
+  /* ---------------- 제출 ---------------- */
+  function scrubPII(s) {
+    return s.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[삭제됨]')
+      .replace(/(\+?82[-\s]?)?0?1[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/g, '[삭제됨]')
+      .replace(/\d{2,3}[-\s.]\d{3,4}[-\s.]\d{4}/g, '[삭제됨]').trim().slice(0, 300);
+  }
+  function grade(phase, ids) {
+    var out = {};
+    ids.forEach(function (id) { out[id] = { choice: answers[phase][id], correct: answers[phase][id] === Q[id].answer }; });
+    return out;
+  }
+  function count(obj, ids) { return ids.filter(function (id) { return obj[id] && obj[id].correct; }).length; }
+  function submit() {
+    var now = performance.now();
+    timing[current] = (timing[current] || 0) + (now - screenStart);
+    var pre = grade('pre', PRE), post = grade('post', POST);
+    resp.profile = { major: profile.major || null, ageBand: profile.ageBand || null, examStage: profile.examStage || null };
+    resp.pre = { order: PRE.slice(), items: pre };
+    resp.post = { order: POST.slice(), items: post };
+    resp.scores = { preSame: count(pre, SAME), postSame: count(post, SAME), sameMax: SAME.length, postTransfer: count(post, TRANSFER), transferMax: TRANSFER.length };
+    resp.scores.gainSame = resp.scores.postSame - resp.scores.preSame;
+    resp.learn = resp.arm === 'V'
+      ? { predict: { p1: { choice: p1, correct: p1 === 1 }, p2: { choice: p2, correct: p2 === 0 } }, p1Confirmed: sim.p1Seen,
+          interactions: JSON.parse(JSON.stringify(log)),
+          checklistDone: Array.prototype.filter.call(document.querySelectorAll('#vChecklist li'), function (li) { return li.classList.contains('done'); }).map(function (li) { return li.getAttribute('data-k'); }) }
+      : { predict: null, p1Confirmed: null, interactions: null, checklistDone: null };
+    resp.ratings = { understood: ratings.understood, wantMore: ratings.wantMore };
+    resp.confusing = scrubPII($('confusing').value || '') || null;
+    resp.timing = { introSec: sec(timing['s-intro']), preSec: sec(timing['s-pre']), learnSec: sec(timing['s-learn']), postSec: sec(timing['s-post']), rateSec: sec(timing['s-rate']), totalSec: sec(now - startedAt + (timing['s-intro'] || 0)) };
+    resp.env = { narrow: window.innerWidth < 400, colorScheme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', reducedMotion: !!reduced };
+    resp.completedAt = new Date().toISOString();
+    var p = resp.consent ? store.save(resp) : Promise.resolve({ ok: false, via: 'none' });
+    p.then(function (r) {
+      resp.storedVia = r.via;
+      $('doneSaved').textContent = !resp.consent ? '동의하지 않으셔서 답을 저장하지 않았어요.'
+        : r.ok ? '익명 답이 이 기기에 저장됐어요.' : '이 기기에 저장하지 못했어요(브라우저 설정). 아래 "결과 복사"로 보내 주실 수 있어요.';
+      renderDone();
+      show('s-done');
+    });
+  }
+  function renderDone() {
+    var s = resp.scores;
+    $('doneScore').innerHTML = '<h2>내 결과</h2><p>처음 두 문제: <b style="white-space:nowrap">' + s.preSame + ' / 2</b> → 학습 뒤 같은 문제: <b style="white-space:nowrap">' + s.postSame + ' / 2</b><br>새 문제: <b style="white-space:nowrap">' + s.postTransfer + ' / 2</b></p>' +
+      '<p class="small">점수는 이 방식이 얼마나 도움이 됐는지 보려는 것이지 실력 평가가 아니에요. 내용은 초안이라 전문가 검수 전이에요.</p>';
+    $('doneExplain').innerHTML = '<h2>정답과 풀이</h2>' + POST.map(function (id, i) {
+      var it = resp.post.items[id], qq = Q[id], ans = qq.options.filter(function (o) { return o.k === qq.answer; })[0].t;
+      return '<div class="sunk"><p style="margin:0 0 4px"><b>' + (i + 1) + '. ' + esc(qq.text) + '</b></p><p style="margin:0 0 4px"><span class="' + (it.correct ? 'ok">맞음' : 'no">다름') + '</span> · 정답: ' + esc(ans) + '</p><p style="margin:0">' + esc(qq.explain) + '</p></div>';
+    }).join('');
+    $('doneExport').hidden = !resp.consent;
+    $('doneJson').textContent = JSON.stringify(resp, null, 1);
+  }
+  function copyText(text, msgEl) {
+    function fallback() {
+      var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      msgEl.textContent = ok ? '복사했어요. 메시지 창에 붙여 넣어 주세요.' : '자동 복사가 안 돼요. 아래 글을 길게 눌러 직접 복사해 주세요.';
+    }
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(function () { msgEl.textContent = '복사했어요. 메시지 창에 붙여 넣어 주세요.'; }, fallback);
+    else fallback();
+  }
+  $('btnCopy').addEventListener('click', function () { copyText(JSON.stringify(resp), $('copyMsg')); });
+  /* 구글 폼 보내기(D37): 운영자가 만든 폼의 "미리 채워진 링크"(마지막 entry.N= 까지)를 넣으면 버튼이 보인다.
+     익명 응답(JSON)만 한 칸에 담아 새 창으로 연다. 이 페이지는 아무 데도 직접 통신하지 않는다(CSP connect-src 'none'). */
+  var FORM_PREFILL = '';
+  if (FORM_PREFILL) {
+    $('btnSend').hidden = false;
+    $('btnSend').addEventListener('click', function () {
+      window.open(FORM_PREFILL + encodeURIComponent(JSON.stringify(resp)), '_blank', 'noopener');
+      $('copyMsg').textContent = '새 창의 구글 폼에서 "제출"을 눌러 주세요.';
+    });
+  }
+
+  /* ---------------- 관리자 집계 (?admin=1, 테스트용) ---------------- */
+  function mean(a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : NaN; }
+  function median(a) { if (!a.length) return NaN; var b = a.slice().sort(function (x, y) { return x - y; }), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; }
+  function pct(x) { return isNaN(x) ? '—' : Math.round(x * 100) + '%'; }
+  function num(x, d) { return isNaN(x) ? '—' : x.toFixed(d == null ? 2 : d); }
+  function renderAdmin(all) {
+    var rows = all.filter(function (r) { return r && r.schema === SCHEMA && r.consent; });
+    var arms = { V: [], T: [] };
+    rows.forEach(function (r) { if (arms[r.arm]) arms[r.arm].push(r); });
+    function stats(list) {
+      var pre = list.map(function (r) { return r.scores.preSame / r.scores.sameMax; }), post = list.map(function (r) { return r.scores.postSame / r.scores.sameMax; });
+      return { n: list.length, rnd: list.filter(function (r) { return r.assignment === 'random'; }).length, pre: mean(pre), post: mean(post), gain: mean(post) - mean(pre),
+        transfer: mean(list.map(function (r) { return r.scores.postTransfer / r.scores.transferMax; })),
+        und: mean(list.map(function (r) { return r.ratings.understood; })), want: mean(list.map(function (r) { return r.ratings.wantMore; })),
+        learn: median(list.map(function (r) { return r.timing.learnSec; })), total: median(list.map(function (r) { return r.timing.totalSec; })) };
+    }
+    var sv = stats(arms.V), st = stats(arms.T);
+    var line = function (label, f) { return '<tr><th>' + label + '</th><td>' + f(sv) + '</td><td>' + f(st) + '</td></tr>'; };
+    $('admSummary').innerHTML = '<h2>팔별 요약</h2><table><tr><th></th><th>V 조작 그림</th><th>T 글+정지 그림</th></tr>' +
+      line('n (무작위 배정)', function (s) { return s.n + ' (' + s.rnd + ')' + (s.rnd < 20 ? ' · 목표 20 미만' : ''); }) +
+      line('사전 정답률(같은 2문항)', function (s) { return pct(s.pre); }) +
+      line('사후 정답률(같은 2문항)', function (s) { return pct(s.post); }) +
+      line('향상(사후 − 사전)', function (s) { return isNaN(s.gain) ? '—' : (s.gain >= 0 ? '+' : '') + Math.round(s.gain * 100) + '%p'; }) +
+      line('새 문제 정답률(2문항)', function (s) { return pct(s.transfer); }) +
+      line('이해됐다 평균(1–5)', function (s) { return num(s.und); }) +
+      line('이렇게 배우고 싶다 평균(1–5)', function (s) { return num(s.want); }) +
+      line('학습 화면 시간 중앙값(초)', function (s) { return num(s.learn, 0); }) +
+      line('전체 시간 중앙값(초)', function (s) { return num(s.total, 0); }) +
+      '</table><p class="small" style="margin-top:8px">향상 차이 V − T: <b>' + (isNaN(sv.gain - st.gain) ? '—' : Math.round((sv.gain - st.gain) * 100) + '%p') + '</b> · 동의 응답 ' + rows.length + '건. 강제 배정(?arm=)도 섞여 있으니 분석 때 random만 쓰세요. 기술 통계일 뿐 검정이 아니에요.</p>';
+    var html = '<h2>문항별 정답률 · 고른 답</h2><table><tr><th>문항</th><th>V</th><th>T</th><th>V 오답 꼬리표</th><th>T 오답 꼬리표</th></tr>';
+    [['pre', PRE], ['post', POST]].forEach(function (pair) {
+      pair[1].forEach(function (id) {
+        function cell(list) { var a = list.map(function (r) { return r[pair[0]].items[id]; }).filter(Boolean); return pct(mean(a.map(function (x) { return x.correct ? 1 : 0; }))) + ' (' + a.length + ')'; }
+        function wrong(list) { var c = {}; list.forEach(function (r) { var x = r[pair[0]].items[id]; if (x && !x.correct) c[x.choice] = (c[x.choice] || 0) + 1; }); return Object.keys(c).map(function (k) { return esc(k) + '×' + c[k]; }).join(', ') || '—'; }
+        html += '<tr><td>' + (pair[0] === 'pre' ? '사전 ' : '사후 ') + id + '</td><td>' + cell(arms.V) + '</td><td>' + cell(arms.T) + '</td><td>' + wrong(arms.V) + '</td><td>' + wrong(arms.T) + '</td></tr>';
+      });
+    });
+    var pv = arms.V.filter(function (r) { return r.learn && r.learn.predict; });
+    html += '</table><p class="small" style="margin-top:8px">V 예측 정답률: 예측 1(최대 각도) ' + pct(mean(pv.map(function (r) { return r.learn.predict.p1.correct ? 1 : 0; }))) +
+      ', 예측 2(먼저 최대) ' + pct(mean(pv.map(function (r) { return r.learn.predict.p2.correct ? 1 : 0; }))) + ' (' + pv.length + ')</p>';
+    $('admItems').innerHTML = html;
+    var texts = rows.filter(function (r) { return r.confusing; });
+    $('admText').innerHTML = '<h2>가장 헷갈린 점 (' + texts.length + ')</h2>' + (texts.length ? '<ul>' + texts.map(function (r) { return '<li><b>' + esc(r.arm) + '</b> · ' + esc(r.confusing) + '</li>'; }).join('') + '</ul>' : '<p>없음</p>');
+  }
+  function refreshAdmin() { localStore.list().then(renderAdmin); }
+  if (q.get('admin') === '1') {
+    show('s-admin');
+    refreshAdmin();
+    $('admBtnImport').addEventListener('click', function () {
+      var raw = $('admImport').value.trim(), items = [];
+      try { var v = JSON.parse(raw); items = Array.isArray(v) ? v : [v]; }
+      catch (e) { raw.split(/\n+/).forEach(function (ln) { try { items.push(JSON.parse(ln)); } catch (e2) {} }); }
+      localStore.importMany(items).then(function (n) { $('admMsg').textContent = n + '건 더했어요.'; $('admImport').value = ''; refreshAdmin(); },
+        function () { $('admMsg').textContent = '저장 실패'; });
+    });
+    $('admBtnCopy').addEventListener('click', function () { localStore.list().then(function (a) { copyText(JSON.stringify(a), $('admMsg')); }); });
+    $('admBtnClear').addEventListener('click', function () { if (confirm('이 기기의 셀프 테스트 응답을 모두 지울까요? 되돌릴 수 없어요.')) localStore.clear().then(function () { $('admMsg').textContent = '지웠어요.'; refreshAdmin(); }); });
+  } else {
+    show('s-intro');
+  }
+
+  // 검증용 훅(화면 동작에는 쓰지 않음)
+  window.voltySelftest = { phasors: phasors, inst: inst, firstMaxWt: firstMaxWt, tip: tip, waveY: waveY, sim: sim, renderV: renderV, drawV: drawV, store: store, localStore: localStore, Q: Q };
+})();
+</script>
+</body>
+</html>

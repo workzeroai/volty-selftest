@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<title>회전자계 학습 셀프 테스트</title>
+<!--
+  Volty H09 셀프 테스트 (비공개 · 로컬 전용 · 초안). 가설: 조작형 그림(V)이 글+정지 그림(T)보다 이해를 더 만든다.
+  외부 라이브러리·글꼴·네트워크 없음(CSP connect-src 'none'). 개인정보(이름·연락처·이메일)를 묻지 않는다.
+  내용 원천: content/volty-content.v1.json CAND-1501 (draft · pending_sme_review · pending_rights_check).
+  그림: android/app/src/debug/assets/pilot/rotating-field.html(경로 C)을 고쳐 씀.
+  쿼리: ?admin=1(로컬 집계, 테스트용) · ?arm=V|T(배정 강제, 테스트용) · ?theme=light|dark · ?rm=1(모션 줄이기) · ?store=stub(백엔드 자리표시 → 로컬로 대체)
+-->
+<style>
+:root {
+  --bg:#F2F4F6; --surface:#FFFFFF; --sunken:#F9FAFB; --ink:#191F28; --text2:#4E5968; --text3:#636E7B;
+  --brand:#FFD43B; --brandPressed:#F2C200; --onBrand:#191F28; --brandSoft:#FFF3C4; --onBrandSoft:#191F28;
+  --border:#D1D6DB; --divider:#E5E8EB; --track:#E5E8EB; --progress:#191F28; --focus:#191F28; --sel:#191F28;
+  --danger:#C81E2D; --success:#0F7A43;
+  --axis:#636E7B; --ring:#F2F4F6; --ringStroke:#191F28; --locus:#8B95A1; --resStroke:#191F28;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#101318; --surface:#1B1F26; --sunken:#15181E; --ink:#F2F4F6; --text2:#B0B8C1; --text3:#8B95A1;
+    --brandPressed:#E6BE2E; --brandSoft:#3A3115; --onBrandSoft:#FFE58A; --border:#3A414C; --divider:#2B313B;
+    --track:#2B313B; --progress:#FFD43B; --focus:#FFD43B; --sel:#FFD43B; --danger:#FF6B6B; --success:#4CC38A;
+    --axis:#8B95A1; --ring:#2B313B; --ringStroke:#B0B8C1; --locus:#636E7B;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#101318; --surface:#1B1F26; --sunken:#15181E; --ink:#F2F4F6; --text2:#B0B8C1; --text3:#8B95A1;
+  --brandPressed:#E6BE2E; --brandSoft:#3A3115; --onBrandSoft:#FFE58A; --border:#3A414C; --divider:#2B313B;
+  --track:#2B313B; --progress:#FFD43B; --focus:#FFD43B; --sel:#FFD43B; --danger:#FF6B6B; --success:#4CC38A;
+  --axis:#8B95A1; --ring:#2B313B; --ringStroke:#B0B8C1; --locus:#636E7B;
+}
+* { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body {
+  margin:0; background:var(--bg); color:var(--ink);
+  font:17px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  word-break:keep-all; overflow-wrap:anywhere;
+}
+main { max-width:560px; margin:0 auto; padding:12px 20px 40px; }
+[hidden] { display:none !important; }
+.top { position:sticky; top:0; z-index:2; background:var(--bg); padding:8px 0 4px; }
+.over { font-size:14px; color:var(--text3); margin:0; }
+.prog { height:6px; background:var(--track); border-radius:3px; overflow:hidden; margin:6px 0 2px; }
+.prog > div { height:100%; width:0; background:var(--progress); transition:width .3s; }
+h1 { font-size:24px; line-height:1.4; margin:8px 0 8px; text-wrap:balance; }
+h2 { font-size:20px; line-height:1.4; margin:0 0 8px; }
+h3 { font-size:18px; line-height:1.45; margin:12px 0 6px; }
+p { margin:0 0 12px; color:var(--text2); }
+ul, ol { margin:0 0 12px; padding-left:22px; color:var(--text2); }
+li { margin:2px 0; }
+b, strong { color:var(--ink); }
+.card { background:var(--surface); border-radius:16px; padding:16px; margin:12px 0; }
+.sunk { background:var(--sunken); border-radius:12px; padding:12px; margin:8px 0; }
+.small { font-size:14px; color:var(--text3); }
+.badge { display:inline-block; background:var(--brandSoft); color:var(--onBrandSoft); border-radius:8px; padding:2px 8px; font-size:14px; font-weight:600; }
+button {
+  font:inherit; font-size:16px; min-height:48px; padding:8px 16px; border-radius:14px; cursor:pointer;
+  border:1px solid var(--border); background:var(--sunken); color:var(--ink);
+}
+button:disabled { opacity:.45; cursor:not-allowed; }
+button.primary {
+  display:block; width:100%; min-height:56px; margin-top:16px; font-size:17px; font-weight:700;
+  background:var(--brand); color:var(--onBrand); border-color:var(--brand);
+}
+button.primary:active:not(:disabled) { background:var(--brandPressed); }
+button.text { background:none; border:none; text-decoration:underline; font-weight:600; padding:8px 4px; }
+button[aria-pressed="true"] { border:2px solid var(--sel); font-weight:700; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, label:focus-within { outline:3px solid var(--focus); outline-offset:2px; }
+fieldset { border:0; margin:0 0 16px; padding:0; min-width:0; }
+legend { font-weight:700; font-size:17px; color:var(--ink); padding:0; margin-bottom:8px; }
+.opt {
+  display:flex; gap:10px; align-items:flex-start; min-height:48px; padding:12px; margin:8px 0;
+  border:1px solid var(--border); border-radius:12px; background:var(--sunken); cursor:pointer; color:var(--ink);
+}
+.opt input { margin:4px 0 0; width:20px; height:20px; flex:none; accent-color:var(--progress); }
+.opt:has(input:checked) { border:2px solid var(--sel); padding:11px; font-weight:600; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; }
+.chips .opt { margin:0; padding:8px 12px; min-height:44px; align-items:center; }
+.chips .opt input { margin:0; }
+.chips .opt:has(input:checked) { padding:7px 11px; }
+.scale { display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; }
+.scale .opt { flex-direction:column; align-items:center; justify-content:center; margin:0; padding:8px 2px; text-align:center; font-size:18px; font-weight:700; }
+.scale .opt input { margin:0; }
+.scale .opt:has(input:checked) { padding:7px 1px; }
+.scaleEnds { display:flex; justify-content:space-between; font-size:14px; color:var(--text3); margin-top:4px; }
+textarea { width:100%; min-height:96px; font:inherit; font-size:16px; padding:12px; border-radius:12px; border:1px solid var(--border); background:var(--sunken); color:var(--ink); }
+.hint { font-size:14px; color:var(--text3); margin:8px 0 0; text-align:center; }
+svg.fig { display:block; width:100%; height:auto; max-width:420px; margin:0 auto; touch-action:pan-y; }
+.lbl { font:700 22px system-ui, sans-serif; fill:var(--ink); }
+.sym { font:700 15px system-ui, sans-serif; fill:var(--ink); }
+.readout { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; font-size:15px; color:var(--text2); margin:8px 2px 0; }
+.readout b { font-variant-numeric:tabular-nums; }
+.readout .wide { grid-column:1 / -1; }
+.controls { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.controls button { flex:1 1 auto; }
+input[type=range] { width:100%; min-height:48px; accent-color:var(--progress); }
+.row { margin-top:12px; }
+.row > label, .row > .lab { display:block; font-size:16px; color:var(--text2); margin-bottom:2px; }
+.predict { border:2px solid var(--sel); }
+.ok { color:var(--success); font-weight:700; }
+.no { color:var(--danger); font-weight:700; }
+.check li { list-style:none; margin-left:-22px; }
+.check li::before { content:"○ "; color:var(--text3); }
+.check li.done::before { content:"● "; color:var(--ink); }
+.check li.done { color:var(--ink); }
+table { width:100%; border-collapse:collapse; font-size:15px; }
+th, td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--divider); vertical-align:top; font-variant-numeric:tabular-nums; }
+th { color:var(--text2); font-weight:600; }
+.scrollx { overflow-x:auto; }
+pre { white-space:pre-wrap; word-break:break-all; font:13px/1.5 "SF Mono", "Roboto Mono", ui-monospace, monospace; background:var(--sunken); padding:12px; border-radius:12px; max-height:240px; overflow:auto; color:var(--text2); }
+</style>
+</head>
+<body>
+<main>
+  <div class="top" id="top">
+    <p class="over">Volty 학습 방식 셀프 테스트 · 초안(전문가 검수 전)</p>
+    <div class="prog" aria-hidden="true"><div id="progBar"></div></div>
+    <p class="over" id="stepLbl" aria-live="polite"></p>
+  </div>
+
+  <!-- 1. 소개 · 동의 -->
+  <section id="s-intro" data-step="1">
+    <h1>회전자계, 5분 학습 테스트</h1>
+    <p>전기기사 공부 앱 볼티(Volty)가 개념을 어떤 방식으로 보여 줄 때 더 잘 이해되는지 알아보는 짧은 테스트예요. <b>약 5분</b> 걸려요.</p>
+    <div class="card">
+      <ul>
+        <li>문제 2개 → 짧은 학습 → 문제 4개 → 느낌 2가지 순서예요.</li>
+        <li>학습 화면은 두 가지 방식 중 하나가 무작위로 나와요.</li>
+        <li>시험이 아니에요. 모르면 "잘 모르겠어요"를 고르세요.</li>
+        <li><b>이름·연락처·이메일은 묻지 않아요.</b> 답은 이 기기 안에만 저장돼요.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>나에 대해 (선택)</h2>
+      <p class="small">고르지 않아도 돼요. 아래 세 가지 말고는 묻지 않아요.</p>
+      <div id="profile"></div>
+    </div>
+    <div class="card">
+      <h2>동의</h2>
+      <p>익명 답변(문제 응답, 별점, 걸린 시간, 위에서 고른 항목)을 <b>볼티 개선에만</b> 쓰는 데 동의하시나요? 동의하지 않아도 기록 없이 해 볼 수 있어요.</p>
+      <button type="button" class="primary" id="btnConsent">동의하고 시작하기</button>
+      <p style="text-align:center;margin:8px 0 0"><button type="button" class="text" id="btnNoConsent">동의하지 않고 기록 없이 해 보기</button></p>
+    </div>
+  </section>
+
+  <!-- 2. 사전 문제 -->
+  <section id="s-pre" data-step="2" hidden>
+    <h1>먼저, 지금 생각대로 골라 보세요</h1>
+    <p>정답을 몰라도 괜찮아요. 아직 설명을 보기 전이에요.</p>
+    <div class="card" id="preQs"></div>
+    <button type="button" class="primary" id="btnPre" disabled>다음</button>
+    <p class="hint" id="hintPre">모든 문제에 답하면 넘어갈 수 있어요.</p>
+  </section>
+
+  <!-- 3. 학습 -->
+  <section id="s-learn" data-step="3" hidden>
+    <h1>회전자계의 발생</h1>
+    <div class="card" id="easyText">
+      <span class="badge">한 마디로</span>
+      <p style="margin-top:8px"><b>파도타기처럼 세 코일이 차례로 세져서, 가장 센 자리가 돌아요.</b></p>
+      <h3>핵심</h3>
+      <p>세 코일에 3상 전류를 흘리면, 자계가 한 방향으로 빙글빙글 돌아요.</p>
+      <h3>쉬운 설명</h3>
+      <p>코일 하나만 있으면 자계는 제자리에서 앞뒤로 뒤집힐 뿐 돌지 않아요. 120° 간격으로 놓인 세 코일이 120°씩 늦게 세지면, 가장 센 자리가 돌아가요. 한 상 최대가 200 A·회면 합친 세기는 늘 300 A·회, 식으로 F = 3/2 × F<sub>m</sub>이에요. 전원 선 두 개를 바꿔 이으면 반대로 돌아요.</p>
+      <p>도는 방향은 세 코일이 세지는 순서(상순, a→b→c)를 따라가요. 세 코일이 동시에 최대가 되지 않아서 합친 세기는 3배가 아니라 1.5배예요.</p>
+      <h3>용어 풀이</h3>
+      <ul>
+        <li><b>회전자계</b>: 크기는 그대로, 도는 자계</li>
+        <li><b>교번자계</b>: 돌지 않고 앞뒤로 뒤집히는 자계</li>
+        <li><b>기자력</b>: 자계를 만드는 힘(전류×권수)</li>
+      </ul>
+    </div>
+
+    <!-- 팔 V: 조작형 그림 -->
+    <div class="card" id="armV" hidden>
+      <h2>직접 돌려 보기</h2>
+      <div class="sunk predict" id="predictBox">
+        <fieldset style="margin:0">
+          <legend>먼저 예측해 보세요: 상 두 개(b와 c)를 바꿔 이으면 어느 쪽으로 돌까?</legend>
+          <label class="opt"><input type="radio" name="predict" value="0"><span>반시계 그대로</span></label>
+          <label class="opt"><input type="radio" name="predict" value="1"><span>시계 방향으로</span></label>
+        </fieldset>
+        <p id="predictMsg" class="small" aria-live="polite" style="margin:8px 0 0">예측을 고르면 "상순 바꾸기" 버튼이 열려요.</p>
+      </div>
+      <svg class="fig" id="figV" viewBox="0 0 480 480" role="img" aria-labelledby="figVt figVd"><title id="figVt">3상 회전자계 그림(조작 가능)</title><desc id="figVd"></desc></svg>
+      <div class="readout" aria-hidden="true">
+        <span>시간(전기각) ωt <b id="roT">0°</b></span>
+        <span>합성 자계 방향 <b id="roA">0°</b></span>
+        <span class="wide">합성 세기 |F| <b id="roM">300 A·회 (1.50 F<sub>m</sub>)</b></span>
+      </div>
+      <div class="controls">
+        <button type="button" id="vPlay" aria-label="일시정지">일시정지</button>
+        <button type="button" id="vSeq" aria-pressed="false" disabled>상순 바꾸기 (먼저 예측)</button>
+        <button type="button" id="vOne" aria-pressed="false">한 상만 보기</button>
+        <button type="button" id="vChain" aria-pressed="false">이어 붙여 더하기</button>
+      </div>
+      <div class="row">
+        <label for="vScrub">시간 ωt — 끌어서 멈춰 보기 (그림을 옆으로 끌어도 돼요)</label>
+        <input id="vScrub" type="range" min="0" max="360" step="1" value="0" aria-valuetext="전기각 0도">
+      </div>
+      <div class="row">
+        <span class="lab" id="vSpeedLbl">속도</span>
+        <div class="controls" role="group" aria-labelledby="vSpeedLbl" style="margin-top:0">
+          <button type="button" data-speed="0.25" aria-pressed="false">0.25배</button>
+          <button type="button" data-speed="0.5" aria-pressed="true">0.5배</button>
+          <button type="button" data-speed="1" aria-pressed="false">1배</button>
+        </div>
+      </div>
+      <p id="vLive" class="small" aria-live="polite" style="margin-top:12px"></p>
+      <h3>그림 읽는 법</h3>
+      <ol>
+        <li>가는 화살표는 각 코일의 자계, 노란 화살표는 셋을 더한 자계예요. 테두리의 ⊙는 전류가 나오는 쪽, ⊗는 들어가는 쪽이에요.</li>
+        <li>코일 하나(a)만 있으면 자계는 a축 위에서 앞뒤로 뒤집힐 뿐 돌지 않아요.</li>
+        <li>세 화살표를 꼬리에 이어 붙이면 끝이 노란 화살표 끝과 만나요. ωt = 0이면 200 + 50 + 50 = 300 A·회예요(600이 아니에요).</li>
+        <li id="vFact4" hidden>b와 c 두 선을 바꿔 이으면(상순 a→c→b) 시계 방향으로 돌아요. 크기 300 A·회는 그대로예요.</li>
+      </ol>
+      <h3>해 볼 것</h3>
+      <ul class="check" id="vChecklist">
+        <li data-k="play">재생·멈춤 눌러 보기</li>
+        <li data-k="scrub">시간 막대나 그림을 끌어 보기</li>
+        <li data-k="onlyA">"한 상만 보기" 켜 보기</li>
+        <li data-k="chain">"이어 붙여 더하기" 켜 보기</li>
+        <li data-k="seq">예측한 뒤 "상순 바꾸기"로 확인하기</li>
+      </ul>
+    </div>
+
+    <!-- 팔 T: 글 + 정지 그림 -->
+    <div class="card" id="armT" hidden>
+      <h2>그림으로 보기</h2>
+      <svg class="fig" id="figT" viewBox="0 0 480 480" role="img" aria-labelledby="figTt figTd"><title id="figTt">3상 회전자계 그림(ωt = 0 순간)</title><desc id="figTd">ωt = 0 순간. a 코일 자계 +200, b·c 코일 자계 각 −100 A·회. 셋을 더한 노란 화살표는 300 A·회이고 a축 방향을 가리킵니다.</desc></svg>
+      <p class="small" style="margin-top:8px">ωt = 0 순간: a 코일 +200, b·c 코일 각 −100 A·회. 셋을 더한 노란 화살표는 300 A·회(1.5 F<sub>m</sub>)이고 a축 쪽을 가리켜요. 시간이 지나면 크기 300은 그대로, 방향만 a→b→c 축 쪽(반시계)으로 돌아요.</p>
+      <h3>그림 읽는 법</h3>
+      <ol>
+        <li>가는 화살표는 각 코일의 자계, 노란 화살표는 셋을 더한 자계예요. 테두리의 ⊙는 전류가 나오는 쪽, ⊗는 들어가는 쪽이에요.</li>
+        <li>코일 하나(a)만 있으면 자계는 a축 위에서 앞뒤로 뒤집힐 뿐 돌지 않아요.</li>
+        <li>세 화살표를 꼬리에 이어 붙이면 끝이 노란 화살표 끝과 만나요. ωt = 0이면 200 + 50 + 50 = 300 A·회예요(600이 아니에요).</li>
+        <li>b와 c 두 선을 바꿔 이으면(상순 a→c→b) 시계 방향으로 돌아요. 크기 300 A·회는 그대로예요.</li>
+      </ol>
+    </div>
+    <button type="button" class="primary" id="btnLearn">다 봤어요, 문제 풀기</button>
+    <p class="hint" id="hintLearn" hidden>위의 예측 질문에 먼저 답해 주세요.</p>
+  </section>
+
+  <!-- 4. 사후 문제 -->
+  <section id="s-post" data-step="4" hidden>
+    <h1>방금 본 내용으로 답해 보세요</h1>
+    <p>앞에서 본 문제도 있고 새 문제도 있어요. 다시 돌아가 볼 수는 없어요.</p>
+    <div class="card" id="postQs"></div>
+    <button type="button" class="primary" id="btnPost" disabled>다음</button>
+    <p class="hint">모든 문제에 답하면 넘어갈 수 있어요.</p>
+  </section>
+
+  <!-- 5. 느낌 -->
+  <section id="s-rate" data-step="5" hidden>
+    <h1>마지막으로, 느낌을 알려 주세요</h1>
+    <div class="card" id="rateQs"></div>
+    <div class="card">
+      <label for="confusing"><b>가장 헷갈린 점</b> <span class="small">(선택)</span></label>
+      <p class="small" style="margin:4px 0 8px">이름·연락처는 적지 마세요. 적어도 자동으로 지워요.</p>
+      <textarea id="confusing" maxlength="300" placeholder="예: 화살표가 왜 1.5배인지 모르겠어요"></textarea>
+    </div>
+    <button type="button" class="primary" id="btnRate" disabled>제출하기</button>
+    <p class="hint">별점 두 개에 답하면 제출할 수 있어요.</p>
+  </section>
+
+  <!-- 6. 감사 -->
+  <section id="s-done" data-step="6" hidden>
+    <h1>고맙습니다!</h1>
+    <p id="doneSaved"></p>
+    <div class="card" id="doneScore"></div>
+    <div class="card" id="doneExplain"><h2>정답과 풀이</h2></div>
+    <div class="card" id="doneExport">
+      <h2>결과 보내기</h2>
+      <p>결과는 이 기기 안에만 있어요. 테스트를 부탁한 사람에게 보내려면 복사해서 메시지에 붙여 넣어 주세요. 이름이나 연락처는 들어 있지 않아요.</p>
+      <button type="button" id="btnSend" style="width:100%;margin-bottom:8px" hidden>결과 보내기</button>
+      <button type="button" id="btnCopy" style="width:100%">결과 복사</button>
+      <p class="small" id="copyMsg" aria-live="polite" style="margin:8px 0 0"></p>
+      <pre id="doneJson"></pre>
+    </div>
+    <p style="text-align:center"><button type="button" class="text" id="btnRestart">처음 화면으로</button></p>
+  </section>
+
+  <!-- 관리자(테스트용) -->
+  <section id="s-admin" hidden>
+    <h1>로컬 응답 집계 (테스트용)</h1>
+    <p>이 기기 localStorage에 있는 응답만 셉니다. n이 작으면 차이를 결론으로 쓰지 마세요.</p>
+    <div class="card scrollx" id="admSummary"></div>
+    <div class="card scrollx" id="admItems"></div>
+    <div class="card" id="admText"></div>
+    <div class="card">
+      <h2>가져오기 · 내보내기</h2>
+      <p class="small">참가자가 보낸 "결과 복사" 내용을 붙여 넣으면 이 기기 집계에 더해요(같은 responseId는 한 번만).</p>
+      <textarea id="admImport" placeholder='{"schema":"volty.selftest.rotating-field", ...} 또는 [ ... ]'></textarea>
+      <div class="controls">
+        <button type="button" id="admBtnImport">붙여 넣은 응답 더하기</button>
+        <button type="button" id="admBtnCopy">전체 JSON 복사</button>
+        <button type="button" id="admBtnClear">이 기기 응답 모두 지우기</button>
+      </div>
+      <p class="small" id="admMsg" aria-live="polite"></p>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var SCHEMA = 'volty.selftest.rotating-field', SCHEMA_VERSION = 1, PAGE_VERSION = '0.1.0';
+  var STORE_KEY = 'volty.selftest.rotating-field.v1';
+  var q = new URLSearchParams(location.search);
+  if (q.get('theme') === 'dark' || q.get('theme') === 'light') document.documentElement.setAttribute('data-theme', q.get('theme'));
+  var reduced = q.get('rm') === '1' || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function randHex(n) {
+    var a = new Uint8Array(n);
+    if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(a); else for (var i = 0; i < n; i++) a[i] = Math.floor(Math.random() * 256);
+    return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+  }
+  function rand01() { return parseInt(randHex(4), 16) / 4294967296; }
+
+  /* ---------------- 저장 어댑터 ----------------
+     store 인터페이스: { name, save(resp) → Promise<{ok, via}>, list() → Promise<resp[]>, clear() → Promise }
+     (a) localStore: 기본값. 이 기기 localStorage + 화면의 "결과 복사"로 내보낸다.
+     (b) backendStub: 나중 서버 자리표시. 어떤 URL에도 연결하지 않는다(배포·수집은 사용자 승인 후). 항상 실패 → 로컬로 대체. */
+  var localStore = {
+    name: 'local',
+    _read: function () { try { var v = JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } },
+    _write: function (arr) { localStorage.setItem(STORE_KEY, JSON.stringify(arr)); },
+    save: function (resp) {
+      try { var all = this._read(); all.push(resp); this._write(all); return Promise.resolve({ ok: true, via: 'local' }); }
+      catch (e) { return Promise.resolve({ ok: false, via: 'local', error: String(e && e.message || e) }); }
+    },
+    list: function () { return Promise.resolve(this._read()); },
+    importMany: function (items) {
+      var all = this._read(), seen = {}, added = 0;
+      all.forEach(function (r) { seen[r.responseId] = 1; });
+      items.forEach(function (r) { if (r && r.schema === SCHEMA && r.responseId && !seen[r.responseId]) { all.push(r); seen[r.responseId] = 1; added++; } });
+      try { this._write(all); } catch (e) { return Promise.reject(e); }
+      return Promise.resolve(added);
+    },
+    clear: function () { try { localStorage.removeItem(STORE_KEY); } catch (e) {} return Promise.resolve(); }
+  };
+  var backendStub = {
+    name: 'backend-stub',
+    endpoint: null, // 의도적으로 비어 있음. 서버 주소를 넣는 것은 사용자 승인 사항이다.
+    save: function () { return Promise.reject(new Error('backend-stub: 연결된 서버 없음')); },
+    list: function () { return Promise.resolve([]); },
+    clear: function () { return Promise.resolve(); }
+  };
+  function withFallback(primary, fallback) {
+    return {
+      name: primary.name + '→' + fallback.name,
+      save: function (resp) { return primary.save(resp).catch(function () { return fallback.save(resp); }); },
+      list: function () { return fallback.list(); },
+      clear: function () { return fallback.clear(); }
+    };
+  }
+  var store = q.get('store') === 'stub' ? withFallback(backendStub, localStore) : localStore;
+
+  /* ---------------- 문제 ----------------
+     각 선택지 k는 오개념 꼬리표로 쓴다(README의 분석 계획 참고). dk = 잘 모르겠어요(오답으로 셈). */
+  var DK = { k: 'dk', t: '잘 모르겠어요' };
+  var Q = {
+    swap: {
+      text: '3상 전원 선 중 b상과 c상을 서로 바꿔 이으면 회전자계는 어떻게 될까요?',
+      options: [{ k: 'same', t: '그대로 같은 방향으로 돈다' }, { k: 'reverse', t: '반대 방향으로 돈다' }, { k: 'stop', t: '멈춘다' }, { k: 'double', t: '두 배 빨라진다' }, DK],
+      answer: 'reverse',
+      explain: '두 선을 바꾸면 상순이 a→b→c에서 a→c→b로 바뀌어 반대(시계 방향)로 돌아요. 크기는 그대로예요.'
+    },
+    single: {
+      text: '코일 하나에만 교류를 흘리면 그 코일이 만드는 자계는 어떻게 될까요?',
+      options: [{ k: 'slowRotate', t: '천천히 돈다' }, { k: 'none', t: '자계가 생기지 않는다' }, { k: 'alternate', t: '제자리에서 앞뒤로 뒤집힐 뿐 돌지 않는다' }, { k: 'thirdRotate', t: '1/3 세기로 돈다' }, DK],
+      answer: 'alternate',
+      explain: '코일 하나는 교번자계를 만들어요. 코일 축 위에서 세졌다 약해지며 앞뒤로 뒤집힐 뿐 돌지 않아요.'
+    },
+    magnitude: {
+      text: '한 상 최대 기자력이 200 A·회인 평형 3상이에요. 세 상을 합친 자계의 세기는 몇 A·회일까요?',
+      options: [{ k: 'zero', t: '0 A·회 (세 전류를 더하면 0이니까)' }, { k: 'one', t: '200 A·회' }, { k: 'oneHalf', t: '300 A·회' }, { k: 'triple', t: '600 A·회' }, DK],
+      answer: 'oneHalf',
+      explain: '세 상이 동시에 최대가 되지 않아서 3배(600)가 아니라 1.5배예요. 1.5 × 200 = 300 A·회로 늘 일정하고 방향만 돌아요.'
+    },
+    cyclic: {
+      text: '세 선을 한 칸씩 돌려 이으면(a 자리에 b, b 자리에 c, c 자리에 a) 회전 방향은 어떻게 될까요?',
+      options: [{ k: 'reverse', t: '반대로 돈다' }, { k: 'same', t: '같은 방향으로 돈다' }, { k: 'stop', t: '멈춘다' }, { k: 'step120', t: '120°마다 방향이 바뀐다' }, DK],
+      answer: 'same',
+      explain: '한 칸씩 돌리면 세지는 순서(상순)가 그대로라서 같은 방향으로 돌아요. 방향을 바꾸려면 두 선만 바꿔야 해요.'
+    }
+  };
+  var PRE = ['swap', 'single'];
+  var POST = ['single', 'magnitude', 'swap', 'cyclic'];   // 같은 두 문제는 순서를 바꾸고 새 문제를 사이에 둔다
+  var SAME = ['swap', 'single'], TRANSFER = ['magnitude', 'cyclic'];
+
+  var PROFILE = [
+    { id: 'major', label: '전공', options: [['electric', '전기 관련 전공'], ['nonElectric', '비전공'], ['na', '말하지 않음']] },
+    { id: 'ageBand', label: '나이대', options: [['u30', '30대 미만'], ['30s', '30대'], ['40s', '40대'], ['50s', '50대'], ['60p', '60대 이상'], ['na', '말하지 않음']] },
+    { id: 'examStage', label: '전기기사 준비 단계', options: [['notStarted', '아직 시작 전'], ['written', '필기 공부 중'], ['practical', '필기 합격, 실기 준비'], ['holder', '이미 자격 있음'], ['na', '말하지 않음']] }
+  ];
+
+  /* ---------------- 응답 상태 ---------------- */
+  var resp = null, answers = { pre: {}, post: {} }, profile = {}, ratings = {}, predict = null;
+  var timing = {}, screenStart = 0, current = null, startedAt = 0;
+  var log = { play: 0, scrub: 0, drag: 0, seq: 0, onlyA: 0, chain: 0, speed: 0 };
+
+  function radioGroup(name, options, cls) {
+    return options.map(function (o) {
+      return '<label class="opt"><input type="radio" name="' + name + '" value="' + esc(o[0]) + '"><span>' + esc(o[1]) + '</span></label>';
+    }).join('');
+  }
+  $('profile').innerHTML = PROFILE.map(function (g) {
+    return '<fieldset><legend>' + esc(g.label) + '</legend><div class="chips">' + radioGroup('pf_' + g.id, g.options) + '</div></fieldset>';
+  }).join('');
+  PROFILE.forEach(function (g) {
+    Array.prototype.forEach.call(document.getElementsByName('pf_' + g.id), function (inp) {
+      inp.addEventListener('change', function () { profile[g.id] = inp.value; });
+    });
+  });
+
+  function renderQs(container, ids, phase, onChange) {
+    container.innerHTML = ids.map(function (id, i) {
+      var qq = Q[id];
+      return '<fieldset><legend>' + (i + 1) + '. ' + esc(qq.text) + '</legend>' +
+        radioGroup(phase + '_' + id, qq.options.map(function (o) { return [o.k, o.t]; })) + '</fieldset>';
+    }).join('');
+    ids.forEach(function (id) {
+      Array.prototype.forEach.call(document.getElementsByName(phase + '_' + id), function (inp) {
+        inp.addEventListener('change', function () { answers[phase][id] = inp.value; onChange(); });
+      });
+    });
+  }
+  renderQs($('preQs'), PRE, 'pre', function () { $('btnPre').disabled = PRE.some(function (id) { return !answers.pre[id]; }); });
+  renderQs($('postQs'), POST, 'post', function () { $('btnPost').disabled = POST.some(function (id) { return !answers.post[id]; }); });
+
+  var RATE = [
+    { id: 'understood', label: '이해됐다', lo: '전혀 아니다', hi: '매우 그렇다' },
+    { id: 'wantMore', label: '다른 개념도 이렇게 배우고 싶다', lo: '전혀 아니다', hi: '매우 그렇다' }
+  ];
+  $('rateQs').innerHTML = RATE.map(function (r) {
+    return '<fieldset><legend>' + esc(r.label) + '</legend><div class="scale">' +
+      [1, 2, 3, 4, 5].map(function (n) { return '<label class="opt"><input type="radio" name="rt_' + r.id + '" value="' + n + '" aria-label="' + n + '점"><span>' + n + '</span></label>'; }).join('') +
+      '</div><div class="scaleEnds"><span>1 ' + esc(r.lo) + '</span><span>5 ' + esc(r.hi) + '</span></div></fieldset>';
+  }).join('');
+  RATE.forEach(function (r) {
+    Array.prototype.forEach.call(document.getElementsByName('rt_' + r.id), function (inp) {
+      inp.addEventListener('change', function () { ratings[r.id] = +inp.value; $('btnRate').disabled = RATE.some(function (x) { return !ratings[x.id]; }); });
+    });
+  });
+
+  /* ---------------- 화면 전환 · 시간 ---------------- */
+  var STEP_NAMES = { 1: '소개', 2: '사전 문제', 3: '학습', 4: '사후 문제', 5: '느낌', 6: '끝' };
+  function show(id) {
+    var now = performance.now();
+    if (current) timing[current] = (timing[current] || 0) + (now - screenStart);
+    if (current === 's-learn') setPlaying(false);
+    Array.prototype.forEach.call(document.querySelectorAll('main > section'), function (s) { s.hidden = s.id !== id; });
+    current = id; screenStart = now;
+    var sec = $(id), step = +sec.getAttribute('data-step') || 0;
+    $('top').hidden = !step;
+    $('progBar').style.width = (step ? (step - 1) / 5 * 100 : 0) + '%';
+    $('stepLbl').textContent = step && step < 6 ? step + ' / 5 · ' + STEP_NAMES[step] : (step === 6 ? '완료' : '');
+    window.scrollTo(0, 0);
+    var h = sec.querySelector('h1'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
+    if (id === 's-learn' && resp.arm === 'V') { renderV(); if (!reduced) setPlaying(true); }
+  }
+  function sec(ms) { return Math.round((ms || 0) / 100) / 10; }
+
+  function begin(consent) {
+    var forced = q.get('arm') === 'V' || q.get('arm') === 'T' ? q.get('arm') : null;
+    resp = {
+      schema: SCHEMA, schemaVersion: SCHEMA_VERSION, pageVersion: PAGE_VERSION,
+      responseId: 'rf-' + randHex(8),
+      createdAt: new Date().toISOString(),
+      consent: consent,
+      arm: forced || (rand01() < 0.5 ? 'V' : 'T'),
+      assignment: forced ? 'forced' : 'random',
+      contentRef: { conceptId: 'CAND-1501', version: '0.1.0', status: 'draft · pending_sme_review' }
+    };
+    startedAt = performance.now();
+    $('armV').hidden = resp.arm !== 'V';
+    $('armT').hidden = resp.arm !== 'T';
+    show('s-pre');
+  }
+  $('btnConsent').addEventListener('click', function () { begin(true); });
+  $('btnNoConsent').addEventListener('click', function () { begin(false); });
+  $('btnPre').addEventListener('click', function () { show('s-learn'); });
+  $('btnLearn').addEventListener('click', function () {
+    if (resp.arm === 'V' && predict === null) { $('hintLearn').hidden = false; $('predictBox').scrollIntoView({ block: 'center' }); return; }
+    show('s-post');
+  });
+  $('btnPost').addEventListener('click', function () { show('s-rate'); });
+  $('btnRate').addEventListener('click', submit);
+  $('btnRestart').addEventListener('click', function () { location.reload(); });
+
+  /* ---------------- 물리: 평형 3상, 기본파 ----------------
+     a·b·c 코일 축(수학 각, 반시계 +): 90°, 210°, 330°. 상 k의 맥동 크기 = cos(ωt − lag_k) (F_m 단위).
+     합 벡터 = Σ cos(ωt − lag_k)·û_k → 크기 1.5(늘), 방향(a축 기준) = +ωt(abc, 반시계) 또는 −ωt(acb, 시계). */
+  var AXIS = { a: 90, b: 210, c: 330 };
+  var LAG = { abc: { a: 0, b: 120, c: 240 }, acb: { a: 0, b: 240, c: 120 } };
+  var FM = 200, UNIT = 'A·회';
+  function rad(d) { return d * Math.PI / 180; }
+  function fieldSum(wt, seq, onlyA) {
+    var x = 0, y = 0, parts = {};
+    ['a', 'b', 'c'].forEach(function (ph) {
+      var i = Math.cos(rad(wt - LAG[seq][ph]));
+      parts[ph] = i;
+      if (onlyA && ph !== 'a') return;
+      x += i * Math.cos(rad(AXIS[ph])); y += i * Math.sin(rad(AXIS[ph]));
+    });
+    var mag = Math.hypot(x, y);
+    return { x: x, y: y, mag: mag, ang: ((Math.atan2(y, x) * 180 / Math.PI - 90) % 360 + 360) % 360, parts: parts };
+  }
+
+  /* ---------------- 그림(경로 C를 함수로) ---------------- */
+  var NS = 'http://www.w3.org/2000/svg', L = 92;  // F_m 길이(px). 합성 반지름 = 1.5·L = 138
+  function el(name, attrs, parent) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function unit(deg) { var r = rad(deg); return [Math.cos(r), -Math.sin(r)]; } // 화면 좌표(y 아래)
+  function arrowHead(tx, ty, ux, uy, s) {
+    var len = 16 * s, w = 9 * s, bx = tx - ux * len, by = ty - uy * len;
+    return 'M' + tx.toFixed(2) + ' ' + ty.toFixed(2) + 'L' + (bx - uy * w).toFixed(2) + ' ' + (by + ux * w).toFixed(2) + 'L' + (bx + uy * w).toFixed(2) + ' ' + (by - ux * w).toFixed(2) + 'Z';
+  }
+  function buildFigure(svg) {
+    var g = el('g', { transform: 'translate(240 240)' }, svg);
+    el('path', { 'fill-rule': 'evenodd', fill: 'var(--ring)', stroke: 'var(--ringStroke)', 'stroke-width': 2.5,
+      d: 'M214 0A214 214 0 1 0 -214 0A214 214 0 1 0 214 0ZM188 0A188 188 0 1 1 -188 0A188 188 0 1 1 188 0Z' }, g);
+    el('circle', { r: 1.5 * L, fill: 'none', stroke: 'var(--locus)', 'stroke-width': 2, 'stroke-dasharray': '3 7' }, g);
+    var sides = {};
+    Object.keys(AXIS).forEach(function (ph) {
+      var u = unit(AXIS[ph]);
+      el('line', { x1: (-u[0] * 186).toFixed(1), y1: (-u[1] * 186).toFixed(1), x2: (u[0] * 186).toFixed(1), y2: (u[1] * 186).toFixed(1), stroke: 'var(--axis)', 'stroke-width': 2, 'stroke-dasharray': '6 6' }, g);
+      el('text', { x: (u[0] * 162).toFixed(1), y: (u[1] * 162 + 8).toFixed(1), 'text-anchor': 'middle', class: 'lbl' }, g).textContent = ph;
+      // 코일 변: 축 θ인 코일에 +전류면 θ+90°에 ⊙(나옴), θ−90°에 ⊗(들어감) → 오른손 법칙으로 축 방향 자계
+      sides[ph] = [AXIS[ph] + 90, AXIS[ph] - 90].map(function (deg) {
+        var v = unit(deg), cx = v[0] * 201, cy = v[1] * 201;
+        var sg = el('g', { transform: 'translate(' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' }, g);
+        el('circle', { r: 11, fill: 'var(--surface)', stroke: 'var(--ink)', 'stroke-width': 2 }, sg);
+        var dot = el('circle', { r: 3.5, fill: 'var(--ink)' }, sg);
+        var x = el('path', { d: 'M-6 -6L6 6M6 -6L-6 6', stroke: 'var(--ink)', 'stroke-width': 2.5, 'stroke-linecap': 'round' }, sg);
+        var t = el('text', { x: (v[0] * -24).toFixed(1), y: (v[1] * -24 + 5).toFixed(1), 'text-anchor': 'middle', class: 'sym' }, sg);
+        t.textContent = ph;
+        return { g: sg, dot: dot, x: x };
+      });
+    });
+    var resPath = el('path', { fill: 'var(--brand)', stroke: 'var(--resStroke)', 'stroke-width': 3, 'stroke-linejoin': 'round' }, g);
+    var phaseEls = {};
+    ['a', 'b', 'c'].forEach(function (ph) {
+      var pg = el('g', {}, g);
+      phaseEls[ph] = { g: pg,
+        shaft: el('line', { stroke: 'var(--ink)', 'stroke-width': 5, 'stroke-linecap': 'round' }, pg),
+        head: el('path', { fill: 'var(--ink)' }, pg) };
+    });
+    el('circle', { r: 8, fill: 'var(--ink)' }, g);
+    return function draw(wt, seq, onlyA, chain) {
+      var f = fieldSum(wt, seq, onlyA), ox = 0, oy = 0;
+      ['a', 'b', 'c'].forEach(function (ph) {
+        var i = f.parts[ph], u = unit(AXIS[ph]), show = !onlyA || ph === 'a', e = phaseEls[ph];
+        e.g.style.display = show ? '' : 'none';
+        var sx = chain ? ox : 0, sy = chain ? oy : 0, tx = sx + u[0] * L * i, ty = sy + u[1] * L * i;
+        if (show && chain) { ox = tx; oy = ty; }
+        e.shaft.setAttribute('x1', sx.toFixed(2)); e.shaft.setAttribute('y1', sy.toFixed(2));
+        e.shaft.setAttribute('x2', tx.toFixed(2)); e.shaft.setAttribute('y2', ty.toFixed(2));
+        var sgn = i >= 0 ? 1 : -1;
+        e.head.setAttribute('d', arrowHead(tx, ty, u[0] * sgn, u[1] * sgn, Math.min(1, Math.abs(i) / 0.25)));
+        // 코일 변 기호: 전류 부호에 따라 ⊙/⊗ 뒤집기, 세기에 따라 진하기
+        var vis = show ? 0.25 + 0.75 * Math.abs(i) : 0.15;
+        sides[ph].forEach(function (s, k) {
+          var out = (k === 0) === (i >= 0);
+          s.dot.style.display = out ? '' : 'none'; s.x.style.display = out ? 'none' : '';
+          s.g.style.opacity = vis.toFixed(2);
+        });
+      });
+      var rx = f.x * L, ry = -f.y * L, mag = f.mag * L;
+      if (mag > 4) {
+        var ux = rx / mag, uy = ry / mag, nx = -uy, ny = ux, neck = Math.max(0, mag - 26), sw = 8, hw = 20;
+        var pts = [[-sw, 0], [-sw, neck], [-hw, neck], [0, mag], [hw, neck], [sw, neck], [sw, 0]];
+        resPath.setAttribute('d', pts.map(function (p, k) {
+          return (k ? 'L' : 'M') + (nx * p[0] + ux * p[1]).toFixed(2) + ' ' + (ny * p[0] + uy * p[1]).toFixed(2);
+        }).join('') + 'Z');
+      } else resPath.setAttribute('d', '');
+      return f;
+    };
+  }
+
+  // 팔 T: 같은 그림, ωt = 0 정지
+  buildFigure($('figT'))(0, 'abc', false, false);
+
+  /* ---------------- 팔 V: 조작형 시뮬레이터 ---------------- */
+  var sim = { wt: 0, playing: false, seq: 'abc', onlyA: false, chain: false, speed: 0.5 };
+  var drawV = buildFigure($('figV')), SEC_PER_CYCLE = 4, lastDesc = '';
+  function mark(k) { var li = document.querySelector('#vChecklist [data-k="' + k + '"]'); if (li) li.classList.add('done'); }
+  function renderV() {
+    var f = drawV(sim.wt, sim.seq, sim.onlyA, sim.chain);
+    var wt = Math.round(sim.wt) % 360;
+    $('roT').textContent = wt + '°';
+    $('roA').textContent = f.mag > 0.05 ? Math.round(f.ang) + '°' : '—';
+    $('roM').innerHTML = Math.round(f.mag * FM) + ' ' + UNIT + ' (' + f.mag.toFixed(2) + ' F<sub>m</sub>)';
+    $('vScrub').value = wt;
+    $('vScrub').setAttribute('aria-valuetext', '전기각 ' + wt + '도');
+    var d = sim.onlyA
+      ? 'a상 하나만: 자계가 a축 위에서 앞뒤로 뒤집힐 뿐 돌지 않아요. 지금 ' + Math.round(f.mag * FM) + ' ' + UNIT + '.'
+      : '합성 자계 ' + Math.round(f.mag * FM) + ' ' + UNIT + '로 일정, ' + (sim.seq === 'abc' ? '반시계' : '시계') + ' 방향으로 회전. 지금 방향 ' + (Math.round(f.ang / 30) * 30 % 360) + '도.';
+    if (d !== lastDesc) { $('figVd').textContent = d; lastDesc = d; }
+  }
+  var last = null;
+  function tick(now) {
+    if (!sim.playing) { last = null; return; }
+    if (last !== null) sim.wt = (sim.wt + (now - last) / 1000 * 360 / SEC_PER_CYCLE * sim.speed) % 360;
+    last = now; renderV(); requestAnimationFrame(tick);
+  }
+  function setPlaying(p) {
+    if (sim.playing === p) return;
+    sim.playing = p;
+    var b = $('vPlay'); b.textContent = p ? '일시정지' : '재생'; b.setAttribute('aria-label', p ? '일시정지' : '재생');
+    if (p) requestAnimationFrame(tick);
+  }
+  $('vPlay').addEventListener('click', function () { log.play++; mark('play'); setPlaying(!sim.playing); });
+  $('vScrub').addEventListener('input', function () { log.scrub++; mark('scrub'); setPlaying(false); sim.wt = +this.value; renderV(); });
+  Array.prototype.forEach.call(document.getElementsByName('predict'), function (inp) {
+    inp.addEventListener('change', function () {
+      predict = +inp.value;
+      $('vSeq').disabled = false; $('vSeq').textContent = '상순 바꾸기';
+      $('hintLearn').hidden = true;
+      $('predictMsg').innerHTML = '예측: <b>' + (predict ? '시계 방향' : '반시계 그대로') + '</b>. 이제 아래 "상순 바꾸기"를 눌러 확인해 보세요.';
+    });
+  });
+  $('vSeq').addEventListener('click', function () {
+    log.seq++; mark('seq');
+    sim.seq = sim.seq === 'abc' ? 'acb' : 'abc';
+    var ab = sim.seq === 'abc';
+    this.setAttribute('aria-pressed', String(!ab));
+    $('vFact4').hidden = false;
+    if (!ab && log.seq === 1) {
+      var right = predict === 1;
+      $('predictMsg').innerHTML = '<span class="' + (right ? 'ok' : 'no') + '">' + (right ? '예측이 맞았어요.' : '예측과 달라요.') + '</span> 두 상을 바꾸면 상순이 a→c→b가 되어 시계 방향으로 돌아요. 크기 300 A·회는 그대로예요.';
+      if (!sim.playing && !reduced) setPlaying(true);
+    }
+    $('vLive').textContent = ab ? '상순 a→b→c: 반시계 방향으로 돌아요.' : 'b·c 선을 바꿨어요(a→c→b): 시계 방향으로 돌아요.';
+    renderV();
+  });
+  $('vOne').addEventListener('click', function () {
+    log.onlyA++; mark('onlyA');
+    sim.onlyA = !sim.onlyA; this.setAttribute('aria-pressed', String(sim.onlyA));
+    $('vLive').textContent = sim.onlyA ? 'a상만: 앞뒤로 뒤집힐 뿐 돌지 않아요(교번자계).' : '세 상을 더하면 늘 300 A·회(1.5배)로 돌아요.';
+    renderV();
+  });
+  $('vChain').addEventListener('click', function () {
+    log.chain++; mark('chain');
+    sim.chain = !sim.chain; this.setAttribute('aria-pressed', String(sim.chain));
+    $('vLive').textContent = sim.chain ? '세 화살표를 꼬리에 이어 붙였어요. 끝이 노란 화살표 끝(300 A·회)과 만나요. 셋이 같은 쪽을 보지 않아서 600이 안 돼요.' : '화살표를 원래 자리(각 코일 축)로 돌렸어요.';
+    renderV();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-speed]'), function (b) {
+    b.addEventListener('click', function () {
+      log.speed++; sim.speed = +b.getAttribute('data-speed');
+      Array.prototype.forEach.call(document.querySelectorAll('[data-speed]'), function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+    });
+  });
+  // 그림을 옆으로 끌면 합성 방향 = 끈 방향이 되도록 ωt를 바꾼다. pan-y라서 세로로 밀면 페이지 스크롤.
+  var figV = $('figV');
+  function dragTo(ev) {
+    var r = figV.getBoundingClientRect();
+    var x = ev.clientX - (r.left + r.width / 2), y = ev.clientY - (r.top + r.height / 2);
+    var ang = ((Math.atan2(-y, x) * 180 / Math.PI - 90) % 360 + 360) % 360;
+    sim.wt = sim.seq === 'abc' ? ang : (360 - ang) % 360;
+    renderV();
+  }
+  figV.addEventListener('pointerdown', function (ev) { log.drag++; mark('scrub'); setPlaying(false); figV.setPointerCapture(ev.pointerId); dragTo(ev); });
+  figV.addEventListener('pointermove', function (ev) { if (figV.hasPointerCapture(ev.pointerId)) dragTo(ev); });
+
+  /* ---------------- 제출 ---------------- */
+  function scrubPII(s) {
+    return s.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[삭제됨]')
+      .replace(/(\+?82[-\s]?)?0?1[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/g, '[삭제됨]')
+      .replace(/\d{2,3}[-\s.]\d{3,4}[-\s.]\d{4}/g, '[삭제됨]').trim().slice(0, 300);
+  }
+  function grade(phase, ids) {
+    var out = {};
+    ids.forEach(function (id) { out[id] = { choice: answers[phase][id], correct: answers[phase][id] === Q[id].answer }; });
+    return out;
+  }
+  function count(obj, ids) { return ids.filter(function (id) { return obj[id] && obj[id].correct; }).length; }
+  function submit() {
+    var now = performance.now();
+    timing[current] = (timing[current] || 0) + (now - screenStart);
+    var pre = grade('pre', PRE), post = grade('post', POST);
+    resp.profile = { major: profile.major || null, ageBand: profile.ageBand || null, examStage: profile.examStage || null };
+    resp.pre = { order: PRE.slice(), items: pre };
+    resp.post = { order: POST.slice(), items: post };
+    resp.scores = {
+      preSame: count(pre, SAME), postSame: count(post, SAME), sameMax: SAME.length,
+      postTransfer: count(post, TRANSFER), transferMax: TRANSFER.length
+    };
+    resp.scores.gainSame = resp.scores.postSame - resp.scores.preSame;
+    resp.learn = resp.arm === 'V'
+      ? { predict: { choice: predict, correct: predict === 1 }, interactions: JSON.parse(JSON.stringify(log)),
+          checklistDone: Array.prototype.filter.call(document.querySelectorAll('#vChecklist li'), function (li) { return li.classList.contains('done'); }).map(function (li) { return li.getAttribute('data-k'); }) }
+      : { predict: null, interactions: null, checklistDone: null };
+    resp.ratings = { understood: ratings.understood, wantMore: ratings.wantMore };
+    var txt = scrubPII($('confusing').value || '');
+    resp.confusing = txt || null;
+    resp.timing = { introSec: sec(timing['s-intro']), preSec: sec(timing['s-pre']), learnSec: sec(timing['s-learn']), postSec: sec(timing['s-post']), rateSec: sec(timing['s-rate']), totalSec: sec(now - startedAt + (timing['s-intro'] || 0)) };
+    resp.env = { narrow: window.innerWidth < 400, colorScheme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', reducedMotion: !!reduced };
+    resp.completedAt = new Date().toISOString();
+    var p = resp.consent ? store.save(resp) : Promise.resolve({ ok: false, via: 'none' });
+    p.then(function (r) {
+      resp.storedVia = r.via;
+      $('doneSaved').textContent = !resp.consent ? '동의하지 않으셔서 답을 저장하지 않았어요.'
+        : r.ok ? '익명 답이 이 기기에 저장됐어요.' : '이 기기에 저장하지 못했어요(브라우저 설정). 아래 "결과 복사"로 보내 주실 수 있어요.';
+      renderDone();
+      show('s-done');
+    });
+  }
+  function renderDone() {
+    var s = resp.scores;
+    $('doneScore').innerHTML = '<h2>내 결과</h2><p>처음 두 문제: <b style="white-space:nowrap">' + s.preSame + ' / 2</b> → 학습 뒤 같은 문제: <b style="white-space:nowrap">' + s.postSame + ' / 2</b><br>새 문제: <b style="white-space:nowrap">' + s.postTransfer + ' / 2</b></p>' +
+      '<p class="small">점수는 이 방식이 얼마나 도움이 됐는지 보려는 것이지 실력 평가가 아니에요. 내용은 초안이라 전문가 검수 전이에요.</p>';
+    $('doneExplain').innerHTML = '<h2>정답과 풀이</h2>' + POST.map(function (id, i) {
+      var it = resp.post.items[id], qq = Q[id], ans = qq.options.filter(function (o) { return o.k === qq.answer; })[0].t;
+      return '<div class="sunk"><p style="margin:0 0 4px"><b>' + (i + 1) + '. ' + esc(qq.text) + '</b></p><p style="margin:0 0 4px"><span class="' + (it.correct ? 'ok">맞음' : 'no">다름') + '</span> · 정답: ' + esc(ans) + '</p><p style="margin:0">' + esc(qq.explain) + '</p></div>';
+    }).join('');
+    $('doneExport').hidden = !resp.consent;
+    $('doneJson').textContent = JSON.stringify(resp, null, 1);
+  }
+  function copyText(text, msgEl) {
+    function fallback() {
+      var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      msgEl.textContent = ok ? '복사했어요. 메시지 창에 붙여 넣어 주세요.' : '자동 복사가 안 돼요. 아래 글을 길게 눌러 직접 복사해 주세요.';
+    }
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(function () { msgEl.textContent = '복사했어요. 메시지 창에 붙여 넣어 주세요.'; }, fallback);
+    else fallback();
+  }
+  $('btnCopy').addEventListener('click', function () { copyText(JSON.stringify(resp), $('copyMsg')); });
+  /* 구글 폼 보내기(D37): 운영자가 만든 폼의 "미리 채워진 링크"(마지막 entry.N= 까지)를 넣으면 버튼이 보인다.
+     익명 응답(JSON)만 한 칸에 담아 새 창으로 연다. 이 페이지는 아무 데도 직접 통신하지 않는다(CSP connect-src 'none'). */
+  var FORM_PREFILL = '';
+  if (FORM_PREFILL) {
+    $('btnSend').hidden = false;
+    $('btnSend').addEventListener('click', function () {
+      window.open(FORM_PREFILL + encodeURIComponent(JSON.stringify(resp)), '_blank', 'noopener');
+      $('copyMsg').textContent = '새 창의 구글 폼에서 "제출"을 눌러 주세요.';
+    });
+  }
+
+  /* ---------------- 관리자 집계 (?admin=1, 테스트용) ---------------- */
+  function mean(a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : NaN; }
+  function median(a) { if (!a.length) return NaN; var b = a.slice().sort(function (x, y) { return x - y; }), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; }
+  function pct(x) { return isNaN(x) ? '—' : Math.round(x * 100) + '%'; }
+  function num(x, d) { return isNaN(x) ? '—' : x.toFixed(d == null ? 2 : d); }
+  function renderAdmin(all) {
+    var rows = all.filter(function (r) { return r && r.schema === SCHEMA && r.consent; });
+    var arms = { V: [], T: [] };
+    rows.forEach(function (r) { if (arms[r.arm]) arms[r.arm].push(r); });
+    function stats(list) {
+      var pre = list.map(function (r) { return r.scores.preSame / r.scores.sameMax; });
+      var post = list.map(function (r) { return r.scores.postSame / r.scores.sameMax; });
+      return {
+        n: list.length, pre: mean(pre), post: mean(post), gain: mean(post) - mean(pre),
+        transfer: mean(list.map(function (r) { return r.scores.postTransfer / r.scores.transferMax; })),
+        und: mean(list.map(function (r) { return r.ratings.understood; })),
+        want: mean(list.map(function (r) { return r.ratings.wantMore; })),
+        learn: median(list.map(function (r) { return r.timing.learnSec; })),
+        total: median(list.map(function (r) { return r.timing.totalSec; }))
+      };
+    }
+    var sv = stats(arms.V), st = stats(arms.T);
+    var line = function (label, f) { return '<tr><th>' + label + '</th><td>' + f(sv) + '</td><td>' + f(st) + '</td></tr>'; };
+    $('admSummary').innerHTML = '<h2>팔별 요약</h2><table><tr><th></th><th>V 조작 그림</th><th>T 글+정지 그림</th></tr>' +
+      line('n', function (s) { return s.n + (s.n < 20 ? ' (목표 20 미만)' : ''); }) +
+      line('사전 정답률(같은 2문항)', function (s) { return pct(s.pre); }) +
+      line('사후 정답률(같은 2문항)', function (s) { return pct(s.post); }) +
+      line('향상(사후 − 사전)', function (s) { return isNaN(s.gain) ? '—' : (s.gain >= 0 ? '+' : '') + Math.round(s.gain * 100) + '%p'; }) +
+      line('새 문제 정답률(2문항)', function (s) { return pct(s.transfer); }) +
+      line('이해됐다 평균(1–5)', function (s) { return num(s.und); }) +
+      line('이렇게 배우고 싶다 평균(1–5)', function (s) { return num(s.want); }) +
+      line('학습 화면 시간 중앙값(초)', function (s) { return num(s.learn, 0); }) +
+      line('전체 시간 중앙값(초)', function (s) { return num(s.total, 0); }) +
+      '</table><p class="small" style="margin-top:8px">향상 차이 V − T: <b>' + (isNaN(sv.gain - st.gain) ? '—' : Math.round((sv.gain - st.gain) * 100) + '%p') + '</b> · 동의 응답 ' + rows.length + '건. 기술 통계일 뿐 검정이 아니에요.</p>';
+    var items = [['pre', PRE], ['post', POST]];
+    var html = '<h2>문항별 정답률 · 고른 답</h2><table><tr><th>문항</th><th>V</th><th>T</th><th>V 오답 꼬리표</th><th>T 오답 꼬리표</th></tr>';
+    items.forEach(function (pair) {
+      pair[1].forEach(function (id) {
+        function cell(list) { var a = list.map(function (r) { return r[pair[0]].items[id]; }).filter(Boolean); return pct(mean(a.map(function (x) { return x.correct ? 1 : 0; }))) + ' (' + a.length + ')'; }
+        function wrong(list) { var c = {}; list.forEach(function (r) { var x = r[pair[0]].items[id]; if (x && !x.correct) c[x.choice] = (c[x.choice] || 0) + 1; }); return Object.keys(c).map(function (k) { return esc(k) + '×' + c[k]; }).join(', ') || '—'; }
+        html += '<tr><td>' + (pair[0] === 'pre' ? '사전 ' : '사후 ') + id + '</td><td>' + cell(arms.V) + '</td><td>' + cell(arms.T) + '</td><td>' + wrong(arms.V) + '</td><td>' + wrong(arms.T) + '</td></tr>';
+      });
+    });
+    var pv = arms.V.filter(function (r) { return r.learn && r.learn.predict; });
+    html += '</table><p class="small" style="margin-top:8px">V 예측 정답률: ' + pct(mean(pv.map(function (r) { return r.learn.predict.correct ? 1 : 0; }))) + ' (' + pv.length + ')</p>';
+    $('admItems').innerHTML = html;
+    var texts = rows.filter(function (r) { return r.confusing; });
+    $('admText').innerHTML = '<h2>가장 헷갈린 점 (' + texts.length + ')</h2>' + (texts.length ? '<ul>' + texts.map(function (r) { return '<li><b>' + esc(r.arm) + '</b> · ' + esc(r.confusing) + '</li>'; }).join('') + '</ul>' : '<p>없음</p>');
+  }
+  function refreshAdmin() { localStore.list().then(renderAdmin); }
+  if (q.get('admin') === '1') {
+    show('s-admin');
+    refreshAdmin();
+    $('admBtnImport').addEventListener('click', function () {
+      var raw = $('admImport').value.trim(), items = [];
+      try { var v = JSON.parse(raw); items = Array.isArray(v) ? v : [v]; }
+      catch (e) { raw.split(/\n+/).forEach(function (ln) { try { items.push(JSON.parse(ln)); } catch (e2) {} }); }
+      localStore.importMany(items).then(function (n) { $('admMsg').textContent = n + '건 더했어요.'; $('admImport').value = ''; refreshAdmin(); },
+        function () { $('admMsg').textContent = '저장 실패'; });
+    });
+    $('admBtnCopy').addEventListener('click', function () { localStore.list().then(function (a) { copyText(JSON.stringify(a), $('admMsg')); }); });
+    $('admBtnClear').addEventListener('click', function () { if (confirm('이 기기의 셀프 테스트 응답을 모두 지울까요? 되돌릴 수 없어요.')) localStore.clear().then(function () { $('admMsg').textContent = '지웠어요.'; refreshAdmin(); }); });
+  } else {
+    show('s-intro');
+  }
+
+  // 검증용 훅(화면 동작에는 쓰지 않음)
+  window.voltySelftest = { fieldSum: fieldSum, sim: sim, renderV: renderV, store: store, localStore: localStore, Q: Q };
+})();
+</script>
+</body>
+</html>
